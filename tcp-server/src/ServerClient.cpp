@@ -21,7 +21,7 @@ namespace TCP {
     Server::Client::disconnect()
     {
         _status = ClientStatus::disconnected;
-        if (_cli_socket.IsUP() != INet::Socket::Status::up) return _status;
+        if (!_cli_socket.IsUP()) return _status;
         /* _cli_socket.Shutdown(SD_BOTH); */
         _cli_socket.Shutdown(SHUT_RDWR);
         _cli_socket.Close();

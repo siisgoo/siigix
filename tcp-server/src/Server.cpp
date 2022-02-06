@@ -86,7 +86,7 @@ namespace TCP {
     bool
     Server::connectTo(const INet::sockaddr_in_any host, connection_hndl_fn_t connect_hndl) {
         INet::Socket client_socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-        if (client_socket.IsUP() != INet::Socket::Status::up) return false;
+        if (!client_socket.IsUP()) return false;
 
         if (_socket.Connect((sockaddr *)&std::move(host.ip4()), sizeof(host)) != 0) { //add conversion of host.ip4()
             client_socket.Close();
@@ -159,7 +159,7 @@ namespace TCP {
                 _socket.Accept4((struct sockaddr*)&client_addr.ip4(), &addrlen, SOCK_NONBLOCK)
             );
 
-        if (client_socket.IsUP() == INet::Socket::Status::up && _status == ServerStatus::running) {
+        if (client_socket.IsUP() && _status == ServerStatus::running) {
             if (enableKeepAlive(client_socket)) {
                 std::unique_ptr<Client> client(new Client(client_socket, client_addr));
                 _conn_hndl_fn(*client);
