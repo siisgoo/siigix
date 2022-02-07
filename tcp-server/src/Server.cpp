@@ -5,41 +5,22 @@
 namespace siigix
 {
 namespace TCP {
-    Server::Server(data_hndl_fn_t data_hndl_fn,
-            bool useip6, int port, std::string ip, int threads) :
-        Server(data_hndl_fn, default_conn_hndl_fn, default_conn_hndl_fn,
-                useip6, port, ip,
+    Server::Server(port_t port, std::string ip, int threads) :
+        Server(default_data_hndl_fn, default_conn_hndl_fn, default_conn_hndl_fn,
+                port, ip,
                 threads)
     { }
 
     Server::Server(data_hndl_fn_t d_hndl_fn,
             connection_hndl_fn_t conn_hndl_fn,
             connection_hndl_fn_t disconn_hdnl_fn,
-            bool useip6, int port, std::string ip,
-            int threads) :
-        _server_address(useip6),
-        _socket(useip6 ? AF_INET6 : AF_INET, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP),
+            port_t port, std::string ip, int threads) :
+        _socket(port),
         _data_hndl_fn(d_hndl_fn),
         _conn_hndl_fn(conn_hndl_fn),
         _disconn_hndl_fn(disconn_hdnl_fn),
         _thread_pool(threads)
-    {
-        if (useip6) { //todo
-            /* memset(&_server_address.ip4, 0, sizeof(_server_address.ip4)); */
-            /* struct in6_addr addr; */
-            /* inet_pton(AF_INET6, ip.c_str(), &addr); */
-            /* _server_address.ip6.sin6_port = htons(port); */
-            /* _server_address.ip6.sin6_addr = addr; //strcpy? */
-            /* _server_address.ip6.sin6_family = AF_INET6; */
-        } else {
-            struct in_addr addr;
-            inet_pton(AF_INET6, ip.c_str(), &addr);
-            memset(&_server_address.ip4(), 0, sizeof(_server_address.ip4()));
-            _server_address.ip4().sin_port = htons(port);
-            _server_address.ip4().sin_addr = addr;
-            _server_address.ip4().sin_family = AF_INET;
-        }
-    }
+    { }
 
     Server::~Server()
     {
@@ -48,21 +29,16 @@ namespace TCP {
         }
     }
 
-    ServerStatus
+    int
     Server::start()
     {
         if (_status == ServerStatus::running) {
             stop();
         }
 
-        /////////////////ADD CHECKS////////////////////////////
+        /* int reuseaddr = 1; */
 
-        int reuseaddr = 1;
-
-        _socket.SetOpts(SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(reuseaddr));
-        _socket.Bind((struct sockaddr*)&(_server_address.ip4().sin_addr), sizeof(_server_address.ip4()));
-
-        _socket.Listen(1000); //TODO add var
+        /* _socket.SetOpts(SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(reuseaddr)); */
 
         std::function<void()> hal = [this]() { handleAcceptLoop(); };
         std::function<void()> wdl = [this]() { waitDataLoop(); };
@@ -84,33 +60,27 @@ namespace TCP {
     void Server::joinLoop() {_thread_pool.join();}
 
     bool
-    Server::connectTo(const INet::sockaddr_in_any host, connection_hndl_fn_t connect_hndl) {
-        INet::Socket client_socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-        if (!client_socket.IsUP()) return false;
-
-        if (_socket.Connect((sockaddr *)&std::move(host.ip4()), sizeof(host)) != 0) { //add conversion of host.ip4()
-            client_socket.Close();
+    Server::connectClient(std::string ip, const port_t port, connection_hndl_fn_t connect_hndl) {
+        try {
+            std::unique_ptr<Client> client(new Client(std::move(ConnectSocket(ip, port))));
+            connect_hndl(*client);
+            _client_mutex.lock();
+            _clients.emplace_back(std::move(client));
+            _client_mutex.unlock();
+        } catch (...) {
+            std::exception_ptr p = std::current_exception();
+            std::cerr <<(p ? p.__cxa_exception_type()->name() : "null") << std::endl;
             return false;
         }
 
-        if(!enableKeepAlive(client_socket)) {
-            client_socket.Shutdown(0);
-            client_socket.Close();
-        }
-
-        std::unique_ptr<Client> client(new Client(client_socket, host));
-        connect_hndl(*client);
-        _client_mutex.lock();
-        _clients.emplace_back(std::move(client));
-        _client_mutex.unlock();
         return true;
     }
 
     bool
-    Server::disconnectHost(const INet::sockaddr_in_any addr) {
+    Server::disconnectClient(std::string ip, port_t port) {
         bool disconn = false;
         for (std::unique_ptr<Client>& client : _clients)
-            if (client->getAddr() == addr) {
+            if (client->getIP() == ip && client->getPort() == port) {
                 client->disconnect();
                 disconn = true;
             }
@@ -120,56 +90,38 @@ namespace TCP {
     void
     Server::disconnectAll() {
         for(std::unique_ptr<Client>& client : _clients) {
-            client->disconnect();
+            /* client->disconnect(); */
         }
     }
 
     bool
-    Server::sendTo(const INet::sockaddr_in_any addr, const IOBuff& data) {
+    Server::sendToClient(std::string ip, port_t port, const IOBuff& data) {
         bool data_is_sended = false;
         for (std::unique_ptr<Client>& client : _clients)
-            if (client->getAddr() == addr) {
-                client->send(data);
+            if (client->getIP() == ip && client->getPort() == port) {
+                client->sendMessage(data);
                 data_is_sended = true;
         }
         return data_is_sended;
     }
 
     void
-    Server::send(const IOBuff& data) {
+    Server::sendToAll(const IOBuff& data) {
         for(std::unique_ptr<Client>& client : _clients)
-            client->send(data);
-    }
-
-    bool
-    Server::enableKeepAlive(INet::Socket socket) {
-        int flag = 1;
-        if (!socket.SetOpts(SOL_SOCKET, SO_KEEPALIVE, &flag, sizeof(flag))) return false;
-        if (!socket.SetOpts(IPPROTO_TCP, TCP_KEEPIDLE, &_ka_conf.ka_idle, sizeof(_ka_conf.ka_idle))) return false;
-        if (!socket.SetOpts(IPPROTO_TCP, TCP_KEEPINTVL, &_ka_conf.ka_intvl, sizeof(_ka_conf.ka_intvl))) return false;
-        if (!socket.SetOpts(IPPROTO_TCP, TCP_KEEPCNT, &_ka_conf.ka_cnt, sizeof(_ka_conf.ka_cnt))) return false;
-        return true;
+            client->_protocol.sendMessage(client->_ip, data);
     }
 
     void
     Server::handleAcceptLoop() {
-        socklen_t addrlen = sizeof(struct sockaddr_in);
-        INet::sockaddr_in_any client_addr;
-        INet::Socket client_socket(
-                _socket.Accept4((struct sockaddr*)&client_addr.ip4(), &addrlen, SOCK_NONBLOCK)
-            );
-
-        if (client_socket.IsUP() && _status == ServerStatus::running) {
-            if (enableKeepAlive(client_socket)) {
-                std::unique_ptr<Client> client(new Client(client_socket, client_addr));
-                _conn_hndl_fn(*client);
-                _client_mutex.lock();
-                _clients.emplace_back(std::move(client));
-                _client_mutex.unlock();
-            } else {
-                client_socket.Shutdown(0);
-                client_socket.Close();
-            }
+        if (_status == ServerStatus::running) {
+            /* TODO AHTUNG!!! not clear memeory on error!!!!!!!!!!!!!! */
+            std::unique_ptr<Client> client( new Client( std::move(_socket.Accept()) ) );
+            _conn_hndl_fn(*client);
+            _client_mutex.lock();
+            _clients.emplace_back(std::move(client));
+            _client_mutex.unlock();
+        } else {
+                //very big error
         }
 
         //loop
@@ -182,22 +134,24 @@ namespace TCP {
     Server::waitDataLoop()
     {
         std::lock_guard lock(_client_mutex);
+        IOBuff data;
+
+        /* for all clients */
         for (auto it = _clients.begin(), end = _clients.end(); it != end; ++it)
         {
             auto& client = *it;
 
-            if (client)
+            if (client) /* client reciving data */
             {
-                if (IOBuff data = client->recive(); data.len() > 0)
-                {
+                if (client->recvMessage(data)) {
                     _thread_pool.addJob([this, _data = std::move(data), &client]() {
                         client->_access_mutex.lock();
-                        _data_hndl_fn(std::move(_data), *client);
+                        _data_hndl_fn(_data, *client);
                         client->_access_mutex.unlock();
                     });
                 }
             }
-            else if(client->_status == ClientStatus::disconnected)
+            else if(client->_status == ClientStatus::disconnected) /* on client disconnected */
             {
                 _thread_pool.addJob([this, &client, it] () {
                     client->_access_mutex.lock();

@@ -1,241 +1,345 @@
 #include <general/Socket.hpp>
+#include <stdexcept>
 
 namespace siigix {
-    namespace INet {
+    //IS OK??????????????????????? TODO
+    int getLocalIP(std::map<std::string, struct sockaddr> &ip_map)
+    {
+        int interface_n = 0;
+        char buff[64];
+        hostent *sh;
+        struct sockaddr_storage ss;
+        struct sockaddr cur_addr;
 
-        #define XX(val, name, desk) { val, desk },
-        const std::map<int, const char*> Socket::errno_with_desk =
-        {
-            SOCKET_ERRNO_MAP(XX)
-        };
-        #undef XX
-
-        //IS OK??????????????????????? TODO
-        int getLocalIP(std::map<std::string, sockaddr_in_any> &ip_map)
-        {
-            int interface_n = 0;
-            char buff[64];
-            hostent *sh;
-
-            if (!gethostname(buff, sizeof(buff))) {
-                if ( (sh = gethostbyname(buff)) ) {
-                    while (sh->h_addr_list[interface_n]) {
-                        sockaddr_in_any addr;
-                        if (sh->h_addrtype == AF_INET) {
-                            memcpy(&addr.ip4().sin_addr, sh->h_addr_list[interface_n], sh->h_length);
-                        } else if (sh->h_addrtype == AF_INET6) {
-                            memcpy(&addr.ip6().sin6_addr, sh->h_addr_list[interface_n], sh->h_length);
-                        } else {
-                            //very big error o_O
-                        }
-                        ip_map[sh->h_aliases[interface_n]] = addr;
-                        interface_n++;
+        if (!gethostname(buff, sizeof(buff))) {
+            if ( (sh = gethostbyname(buff)) ) {
+                while (sh->h_addr_list[interface_n]) {
+                    if (sh->h_addrtype == AF_INET) {
+                        /* memcpy(&.sin_addr, sh->h_addr_list[interface_n], sh->h_length); */
+                    } else if (sh->h_addrtype == AF_INET6) {
+                        /* memcpy(&.sin6_addr, sh->h_addr_list[interface_n], sh->h_length); */
+                    } else {
+                        //very big error o_O
                     }
+                    ip_map[sh->h_aliases[interface_n]] = cur_addr;
+                    interface_n++;
                 }
             }
-            //cleanup TODO
-
-            return interface_n;
         }
+        //cleanup TODO
 
-        bool
-        operator==(struct sockaddr_in a, struct sockaddr_in b)
+        return interface_n;
+    }
+
+    bool
+    operator==(struct sockaddr_in a, struct sockaddr_in b)
+    {
+        if (
+                a.sin_addr.s_addr == b.sin_addr.s_addr &&
+                /* a.sin_family == b.sin_family && */
+                a.sin_port == b.sin_port
+            )
         {
-            if (
-                    a.sin_addr.s_addr == b.sin_addr.s_addr &&
-                    /* a.sin_family == b.sin_family && */
-                    a.sin_port == b.sin_port
-                )
-            {
-                return true;
-            }
-            return false;
+            return true;
         }
+        return false;
+    }
 
-        bool
-        operator==(struct sockaddr_in6 a, struct sockaddr_in6 b)
+    bool
+    operator==(struct sockaddr_in6 a, struct sockaddr_in6 b)
+    {
+        if (
+                a.sin6_flowinfo == b.sin6_flowinfo &&
+                /* !strcmp(a.sin6_addr.s6_addr, b.sin6_addr.s6_addr) && */
+                /* a.sin6_family == b.sin6_family && //is need(alvays AF_INET6)? */
+                a.sin6_port == b.sin6_port &&
+                a.sin6_scope_id == b.sin6_scope_id
+            )
         {
-            if (
-                    a.sin6_flowinfo == b.sin6_flowinfo &&
-                    /* !strcmp(a.sin6_addr.s6_addr, b.sin6_addr.s6_addr) && */
-                    /* a.sin6_family == b.sin6_family && //is need(alvays AF_INET6)? */
-                    a.sin6_port == b.sin6_port &&
-                    a.sin6_scope_id == b.sin6_scope_id
-                )
-            {
-                for (int i = 0; i < 16; i++) { //use sizeof?
-                    if (a.sin6_addr.s6_addr[i] != b.sin6_addr.s6_addr[i]) {
-                        return false;
-                    }
-                }
-                return true;
-            }
-            return false;
-        }
-
-        bool
-        operator==(const sockaddr_in_any a, const sockaddr_in_any b)
-        {
-            if (a.is_v6() == b.is_v6()) {
-                if (a.is_v6() && a.ip6() == b.ip6()) {
-                    return true;
-                } else if (a.ip4() == b.ip4()) {
-                    return true;
+            for (int i = 0; i < 16; i++) { //use sizeof?
+                if (a.sin6_addr.s6_addr[i] != b.sin6_addr.s6_addr[i]) {
+                    return false;
                 }
             }
-            return false;
+            return true;
         }
+        return false;
+    }
 
-        /**********************************************************************
-        *                               Socket                               *
-        **********************************************************************/
+    /**********************************************************************
+    *                              BaseSocket                               *
+    **********************************************************************/
 
-        Socket::Socket(int domain, int type, int protocol) :
-            _fd(socket(domain, type, protocol))
-        { }
-
-        Socket::Socket(int fd) :
-            _fd(fd)
-        { }
-
-        Socket::~Socket() { Close(); }
-
-        bool
-        Socket::Close() { return close(_fd); }
-
-        bool
-        Socket::Bind(const struct sockaddr *addr_to_bind, socklen_t addr_len)
-        {
-            return bind(_fd, addr_to_bind, addr_len);
-        }
-
-        int
-        Socket::Accept(struct sockaddr *remote_host_addr_ret, socklen_t *addr_len)
-        {
-            return accept(_fd, remote_host_addr_ret, addr_len);
-        }
-
-        int
-        Socket::Accept4(struct sockaddr *remote_host_addr_ret, socklen_t *addr_len, int flags)
-        {
-            return accept4(_fd, remote_host_addr_ret, addr_len, flags);
-        }
-
-        bool
-        Socket::Listen(int maxconn)
-        {
-            return listen(_fd, maxconn);
-        }
-
-        bool
-        Socket::GetName(struct sockaddr *ret_addr, socklen_t *addr_len)
-        {
-            return getsockname(_fd, ret_addr, addr_len);
-        }
-
-        bool
-        Socket::GetPeerName(struct sockaddr *remote_host_addr_ret, socklen_t *addr_len)
-        {
-            return getpeername(_fd, remote_host_addr_ret, addr_len);
-        }
-
-        bool
-        Socket::Connect(struct sockaddr *connect_to_addr, socklen_t addr_len)
-        {
-            return connect(_fd, connect_to_addr, addr_len);
-        }
-
-        bool
-        Socket::Connect(sockaddr_in_any *connect_to_addr)
-        {
-            struct sockaddr l_addr;
-            if (connect_to_addr.is_v6()) {
-                l_addr.sa_family = AF_INET6;
-                l_addr.sa_data = ;
-            } else {
-                l_addr.sa_family = AF_INET;
-                l_addr.sa_data[0] = saddr_in_any.sin_addr.s_addr[0];
-                l_addr.sa_data[1] = saddr_in_any.sin_addr.s_addr[1];
-                l_addr.sa_data[2] = saddr_in_any.sin_addr.s_addr[2];
-                l_addr.sa_data[3] = saddr_in_any.sin_addr.s_addr[3];
-            }
-
-            return Connect(_fd, l_addr, addr_len);
-        }
-
-        bool
-        Socket::Connect(int family, const char *ip, __uint16_t port)
-        {
-            struct sockaddr_storage ss;
-
-            if (family == AF_INET)
-            {
-                struct sockaddr_in *addr = (struct sockaddr_in *) &ss;
-                addr->sin_family = AF_INET;
-                addr->sin_port = htons(port);
-                inet_pton(AF_INET, ip, &addr->sin_addr);
-                addrlen = sizeof(struct sockaddr_in);
-            }
-            else if (family == AF_INET6)
-            {
-                struct sockaddr_in6 *addr = (struct sockaddr_in6 *) &ss;
-                addr->sin6_family = AF_INET6;
-                addr->sin6_port = htons(port);
-                inet_pton(AF_INET6, ip, &addr->sin6_addr);
-                addrlen = sizeof(struct sockaddr_in6);
-            } else {
-                return false;
-            }
-
-            return Connect(_fd, l_addr, addr_len);
-        }
-
-        bool
-        Socket::Shutdown(int shutdown_type)
-        {
-            return shutdown(_fd, shutdown_type);
-        }
-
-        bool
-        Socket::Send(const IOBuff& buff, int flags) const
-        {
-            return send(_fd, buff.read(-1), buff.len(), flags);
-        }
-
-        bool
-        Socket::Recv(IOBuff& to, size_t len, int flags)
-        {
-            to.resize(len);
-            return recv(_fd, to.pointer(), len, flags);
-        }
-        /* bool sendTo(); */
-        /* bool recvFrom(); */
-        /* bool sendMsg(); */
-        /* bool recvMsg(); */
-
-        bool
-        Socket::GetOpts(int level, int option, void *value, socklen_t *opt_len) const
-        {
-            return getsockopt(_fd, level, option, value, opt_len);
-        }
-
-        bool
-        Socket::SetOpts(int level, int option, const int *value, socklen_t opt_len)
-        {
-            return setsockopt(_fd, level, option, value, opt_len);
-        }
-
-        const char *
-        Socket::errno_to_human() const
-        {
-        }
-
-        const char *
-        errno_to_human(int errno)
-        {
-            if (Socket::errno_with_desk.find(errno)) {
-
-            }
+    BaseSocket::BaseSocket(int fd)
+        : _fd(fd)
+    {
+        if (fd == INVALID_SOCK) {
+            throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": bad socket: ", strerror(errno)));
         }
     }
+
+    BaseSocket::~BaseSocket()
+    {
+        if (!isValid()) {
+            return;
+        }
+
+        try {
+            Close();
+        } catch (std::exception& except) {
+            //TODO ADD LOG!
+            std::cerr << except.what();
+        }
+    }
+
+    bool
+    BaseSocket::GetOpts(int level, int option, void *value, socklen_t *opt_len) const
+    {
+        return (getsockopt(_fd, level, option, value, opt_len) == 0) ? true : false;
+    }
+
+    bool
+    BaseSocket::SetOpts(int level, int option, const int *value, socklen_t opt_len)
+    {
+        int rc = setsockopt(_fd, level, option, value, opt_len);
+        switch (rc)
+        {
+            case EBADF:
+                throw std::domain_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: EBADF: ", _fd, " ", strerror(rc)));
+                break;
+
+            case EDOM:
+                throw std::domain_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: EDOM: ", _fd, " ", strerror(rc)));
+                break;
+
+            case ENOTSOCK:
+            case EINVAL:
+                throw std::domain_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: critical error: ", strerror(rc)));
+                break;
+
+            case EISCONN:
+                throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: EISCONN: ", strerror(rc)));
+                break;
+
+            case ENOPROTOOPT:
+                throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: EISCONN: ", strerror(rc)));
+                break;
+                throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: : ", strerror(rc)));
+                break;
+
+            case ENOMEM:
+            case ENOBUFS:
+                throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: not anought machine resources: ", strerror(rc)));
+                break;
+
+            default:
+                throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": SetOpts: ???:  ", _fd, " ", strerror(rc)));
+                break;
+        }
+
+        return rc == 0 ? true : false;
+    }
+
+    void
+    BaseSocket::Close()
+    {
+        if (!isValid()) {
+            throw std::logic_error(buildErrorMessage("DataSocket::", __func__, ": accept called on a bad socket object (this object was moved)"));
+        }
+
+        while (true) {
+            int state = ::close(_fd);
+            if (state == 0) {
+                break;
+            }
+            switch(errno)
+            {
+                case EBADF: throw std::domain_error(buildErrorMessage("BaseSocket::", __func__, ": close: EBADF: ", _fd, " ", strerror(errno)));
+                case EIO:   throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": close: EIO:  ", _fd, " ", strerror(errno)));
+                case EINTR:
+                {
+                    // TODO: Check for user interrupt flags.
+                    // Beyond the scope of this project
+                    // so continue normal operations.
+                    break;
+                }
+                default:
+                    throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": close: ???:  ", _fd, " ", strerror(errno)));
+                    break;
+            }
+        }
+
+        _fd = INVALID_SOCK;
+    }
+
+    bool
+    BaseSocket::EnableKeepAlive() {
+        int flag = 1;
+
+        if (SetOpts(SOL_SOCKET,  SO_KEEPALIVE,  &flag,              sizeof(flag)) != 0)              { return false; }
+        if (SetOpts(IPPROTO_TCP, TCP_KEEPIDLE,  &_ka_conf.ka_idle,  sizeof(_ka_conf.ka_idle)) != 0)  { return false; }
+        if (SetOpts(IPPROTO_TCP, TCP_KEEPINTVL, &_ka_conf.ka_intvl, sizeof(_ka_conf.ka_intvl)) != 0) { return false; }
+        if (SetOpts(IPPROTO_TCP, TCP_KEEPCNT,   &_ka_conf.ka_cnt,   sizeof(_ka_conf.ka_cnt)) != 0)   { return false; }
+
+        return true;
+    }
+
+    void
+    BaseSocket::swap(BaseSocket& other) noexcept
+    {
+        std::swap(_fd, other._fd);
+    }
+
+    BaseSocket::BaseSocket(BaseSocket&& moveobj) noexcept
+        : _fd(INVALID_SOCK)
+    {
+        moveobj.swap(*this);
+    }
+
+    BaseSocket&
+    BaseSocket::operator=(BaseSocket&& moveobj) noexcept
+    {
+        moveobj.swap(*this);
+        return *this;
+    }
+
+    /**********************************************************************
+    *                           ConnectSocket                            *
+    **********************************************************************/
+
+    ConnectSocket::ConnectSocket(std::string ip, port_t port, struct addrinfo hints) :
+        DataSocket(::socket(hints.ai_family, hints.ai_socktype, hints.ai_protocol))
+    {
+        struct sockaddr_in serverAddr{};
+        serverAddr.sin_family       = AF_INET;
+        serverAddr.sin_port         = htons(port);
+        serverAddr.sin_addr.s_addr  = inet_addr(ip.c_str());
+
+        if (::connect(getSocketFD(), (struct sockaddr*)&serverAddr, sizeof(serverAddr)) != 0)
+        {
+            Close();
+            throw std::runtime_error(buildErrorMessage("ConnectSocket::", __func__, ": connect: ", strerror(errno)));
+        }
+        /* struct addrinfo *addr; */
+
+        /* char szPort[6]; */
+        /* sprintf(szPort, "%hu", port); */
+
+        /* if (getaddrinfo(ip.c_str(), szPort, &hints, &addr) == 0) { */
+        /*     if (::connect(getSocketFD(), addr->ai_addr, addr->ai_addrlen) == -1) { */
+        /*         throw std::runtime_error(buildErrorMessage("ConnectSocket::", __func__, ": connect: ", strerror(errno))); */
+        /*     } */
+        /* } else { */
+        /*     throw std::runtime_error(buildErrorMessage("ConnectScoket::", __func__, ": getaddrinfo: ", strerror(errno))); */
+        /* } */
+
+        /* freeaddrinfo(addr); */
+    }
+
+    /**********************************************************************
+    *                            ListenSocket                            *
+    **********************************************************************/
+
+    ListenSocket::ListenSocket(port_t port, int max_conn) :
+        BaseSocket(::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP))
+    {
+        struct sockaddr_in l_addr;
+        bzero((char*)&l_addr, sizeof(l_addr));
+        l_addr.sin_family       = AF_INET;
+        l_addr.sin_port         = htons(port);
+        l_addr.sin_addr.s_addr  = INADDR_ANY;
+
+        if (::bind(getSocketFD(), (struct sockaddr*)&l_addr, sizeof(l_addr)) != 0) {
+            Close();
+            throw; std::runtime_error(buildErrorMessage("ServerSocket::", __func__, ": bind: ", strerror(errno)));
+        }
+
+        if (::listen(getSocketFD(), max_conn) != 0)
+        {
+            Close();
+            throw; std::runtime_error(buildErrorMessage("ServerSocket::", __func__, ": listen: ", strerror(errno)));
+        }
+    }
+
+    DataSocket
+    ListenSocket::Accept()
+    {
+        if (getSocketFD() == INVALID_SOCK) {
+            throw std::logic_error(buildErrorMessage("ServerSocket::", __func__, ": accept called on a bad socket object (this object was moved)"));
+        }
+
+        struct sockaddr_storage serverStorage;
+        socklen_t addr_size = sizeof serverStorage;
+        int newSocket = ::accept(getSocketFD(), (struct sockaddr*)&serverStorage, &addr_size);
+        if (newSocket == -1) {
+            throw std::runtime_error(buildErrorMessage("ServerSocket:", __func__, ": accept: ", strerror(errno)));
+        }
+        return DataSocket(newSocket);
+    }
+
+    /**********************************************************************
+    *                             DataSocket                             *
+    **********************************************************************/
+
+    void
+    DataSocket::sendMessage(const char* data, size_t size)
+    {
+        std::size_t dataWritten = 0;
+
+        while(dataWritten < size)
+        {
+            std::size_t put = write(getSocketFD(), data + dataWritten, size - dataWritten);
+            if (put == static_cast<std::size_t>(-1))
+            {
+                switch(errno)
+                {
+                    case EINVAL:
+                    case EBADF:
+                    case ECONNRESET:
+                    case ENXIO:
+                    case EPIPE:
+                    {
+                        // Fatal error. Programming bug
+                        throw std::domain_error(buildErrorMessage("DataSocket::", __func__, ": write: critical error: ", strerror(errno)));
+                    }
+                    case EDQUOT:
+                    case EFBIG:
+                    case EIO:
+                    case ENETDOWN:
+                    case ENETUNREACH:
+                    case ENOSPC:
+                    {
+                        // Resource acquisition failure or device error
+                        throw std::runtime_error(buildErrorMessage("DataSocket::", __func__, ": write: resource failure: ", strerror(errno)));
+                    }
+                    case EINTR:
+                            // TODO: Check for user interrupt flags.
+                            //       Beyond the scope of this project
+                            //       so continue normal operations.
+                    case EAGAIN:
+                    {
+                        // Temporary error.
+                        // Simply retry the read.
+                        continue;
+                    }
+                    default:
+                    {
+                        throw std::runtime_error(buildErrorMessage("DataSocket::", __func__, ": write: returned -1: ", strerror(errno)));
+                    }
+                }
+            }
+            dataWritten += put;
+        }
+        return;
+    }
+
+    void
+    DataSocket::sendMessageClose()
+    {
+        if (::shutdown(getSocketFD(), SHUT_WR) != 0)
+        {
+            throw std::domain_error(buildErrorMessage("HTTPProtocol::", __func__, ": shutdown: critical error: ", strerror(errno)));
+        }
+    }
+
 }

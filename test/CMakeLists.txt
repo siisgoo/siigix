@@ -4,22 +4,21 @@ project(siigix-test-server LANGUAGES CXX VERSION 0.0.1 DESCRIPTION "INet utils")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-#########################
-#  YCM export commands  #
-#########################
+include(FetchContent)
+FetchContent_Declare(
+    googletest
+    URL https://github.com/google/googletest/archive/609281088cfefc76f9d0ce82e1ff6c30cc3591e5.zip
+)
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
 
-SET(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-IF( EXISTS "${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json"  )
-    EXECUTE_PROCESS( COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json
-    ${CMAKE_CURRENT_SOURCE_DIR}/compile_commands.json
-    )
-ENDIF()
-
-add_subdirectory(tcp-server)
-
-add_executable(${PROJECT_NAME} main.cpp)
+add_executable(${PROJECT_NAME} test.cpp)
 
 target_link_libraries(${PROJECT_NAME} PUBLIC
-    tcp-server
+    siigix::general
+    siigix::tcp-server
+    # gtest_main
 )
+
+# include(GoogleTest)
+# gtest_discover_tests(${PROJECT_NAME})

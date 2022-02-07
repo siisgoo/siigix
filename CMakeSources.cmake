@@ -62,6 +62,7 @@ set(TCP_SERVER_INCLUDE_DIRS
 set(GENERAL_SOURCES_LIST
     ${GENERAL_DIR}/src/IOBuff.cpp
     ${GENERAL_DIR}/src/Socket.cpp
+    ${GENERAL_DIR}/src/Protocol.cpp
     ${GENERAL_DIR}/src/ThreadPool.cpp
 )
 
@@ -70,12 +71,14 @@ set(GENERAL_HEADERS_PUBLIC
 )
 
 set(GENERAL_HEADERS_PRIVATE
+    ${GENERAL_DIR}/include/${GENERAL_PROJECT_NAME}/Utils.hpp
     ${GENERAL_DIR}/include/${GENERAL_PROJECT_NAME}/ThreadPool.hpp
     ${GENERAL_DIR}/include/${GENERAL_PROJECT_NAME}/IOBuff.hpp
-    ${GENERAL_DIR}/include/${GENERAL_PROJECT_NAME}/Server.hpp
+    ${GENERAL_DIR}/include/${GENERAL_PROJECT_NAME}/Log.hpp
     ${GENERAL_DIR}/include/${GENERAL_PROJECT_NAME}/Status.hpp
+    ${GENERAL_DIR}/include/${GENERAL_PROJECT_NAME}/Protocol.hpp
     ${GENERAL_DIR}/include/${GENERAL_PROJECT_NAME}/Socket.hpp
-    ${GENERAL_DIR}/include/${GENERAL_PROJECT_NAME}/Bitflag.hpp
+    ${GENERAL_DIR}/include/${GENERAL_PROJECT_NAME}/BitFlag.hpp
 )
 
 set(GENERAL_INCLUDE_DIRS

@@ -1,15 +1,18 @@
 #include <IOBuff.hpp>
+#include <string.h>
 
-using namespace siigix;
+namespace siigix {
 
-IOBuff::IOBuff() :
-    _len(0), _size(0),
+IOBuff::IOBuff(size_t cap) :
+    _len(0), _size(cap),
     _buff(nullptr)
-{}
+{
+    resize(cap);
+}
 
 IOBuff::IOBuff(const IOBuff& other)
 {
-    _buff = new __uint8_t [other.size()];
+    resize(other.size());
     memcpy(_buff, other.read(), other.len());
 }
 
@@ -21,7 +24,7 @@ bool
 IOBuff::add(void *buff, size_t len, size_t chunk_size) {
     //im not loose somesing?
     if (len == 0) {
-        return false;
+        return true;
     } else if (buff == nullptr) {
         return false;
     } else if (_size <= _len+len) { //do non allocate another memeory
@@ -33,7 +36,31 @@ IOBuff::add(void *buff, size_t len, size_t chunk_size) {
     return true;
 }
 
-__uint8_t *
+bool
+IOBuff::add(std::string buff)
+{
+    char str[buff.length()];
+    memcpy(str, buff.c_str(), buff.length());
+
+    return add(&str, buff.length());
+}
+
+bool
+IOBuff::add(const IOBuff& buff)
+{
+    size_t req_size = _len + buff.len();
+    if (buff.len() <= 0) { /* do nothing */
+        return true;
+    } else if (_size < req_size) { /* need resize */
+        if (!resize(req_size)) {
+            throw "Cant resize IOBuff";
+        }
+    }
+    ::memcpy(_buff + _len, buff.pointer(), buff.len());
+    return true;
+}
+
+unsigned char *
 IOBuff::read(size_t offset) const {
     if (offset < 0) {
         return _buff;
@@ -61,7 +88,7 @@ IOBuff::resize(size_t new_size) {
         delete [] _buff;
         _buff = nullptr;
     } else if (_size != new_size) { //buff havve been with zero size
-        __uint8_t *tmp = new (std::nothrow)__uint8_t [new_size];
+        unsigned char *tmp = new (std::nothrow)unsigned char [new_size];
         if (tmp) {
             /* size_t toalloc = new_size < _len ? new_size : _len; //do not allocate bigger then need */
             _size = new_size;
@@ -80,7 +107,9 @@ IOBuff::resize(size_t new_size) {
     return true;
 }
 
-__uint8_t* IOBuff::pointer() const { return _buff; } //CARE, may be kause to vare big arror
+unsigned char* IOBuff::pointer() const { return _buff; } //CARE, may be kause to vare big arror
 size_t IOBuff::len()  const { return _len; }
 size_t IOBuff::size() const { return _size; }
 bool   IOBuff::drop()       { return resize(0); }
+
+} /* siigix */

@@ -88,8 +88,8 @@ namespace siigix {
             { }
 
             template<typename Fn>
-            size_t recvMessage(char *data, size_t size, Fn scanForEnd = [](size_t) { return false; });
-            void   sendMessage(const char* data, size_t size);
+            size_t recvMessage(IOBuff& recvData, Fn scanForEnd = [](size_t) { return false; });
+            void   sendMessage(const IOBuff& sendData);
             void   sendMessageClose();
     };
 
@@ -119,17 +119,18 @@ namespace siigix {
     };
 
     template<typename F>
-    std::size_t DataSocket::recvMessage(char *data, size_t size, F scanForEnd)
+    std::size_t DataSocket::recvMessage(IOBuff& data, F scanForEnd)
     {
         if (getSocketFD() == 0) {
             throw std::logic_error(buildErrorMessage("DataSocket::", __func__, ": accept called on a bad socket object (this object was moved)"));
         }
 
         size_t dataRead  = 0;
-        while(dataRead < size)
+        while(dataRead < data.size())
         {
             // The inner loop handles interactions with the socket.
-            size_t get = read(getSocketFD(), data + dataRead, size - dataRead);
+            size_t get = read(getSocketFD(), data.pointer() + dataRead, data.size() - dataRead);
+            /* size_t get = recv(getSocketFD(), data.pointer() + dataRead, data.size() - dataRead, 0); */
             if (get == static_cast<std::size_t>(-1)) {
                 switch(errno) {
                     case EBADF:

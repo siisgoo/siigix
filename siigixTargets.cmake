@@ -1,2 +1,3 @@
 project(siigix)
-add_subdirectory(server)
+add_subdirectory(general)
+add_subdirectory(tcp-server)
