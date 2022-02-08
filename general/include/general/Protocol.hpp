@@ -25,15 +25,46 @@ namespace siigix {
                 virtual void sendMessage(std::string url, const std::string& data) override;
                 virtual void recvMessage(std::string& data) override;
         };
-    }; /* TCP */
 
-    /* namespace HTTP { */
-    /*     class Protocol: public IProtocol { */
-    /*         public: */
-    /*             virtual void sendMessage(std::string url, const IOBuff& data) override; */
-    /*             virtual void recvMessage(IOBuff& data) override; */
-    /*     }; */
-    /* }; /1* HTTP *1/ */
+        namespace HTTP {
+            class Protocol: public TCP::Protocol {
+                public:
+                    struct header {
+                        const char *name;
+                        const char *value;
+                    };
+
+                    /* METHOD URI HTTP/VERSION */
+                    struct request_line {
+                        const char *method;
+                        const char *uri;
+                        const char *version;
+                    };
+
+                    struct Request {
+                        struct request_line;
+                        struct header headers[100]; //TODO handle this moment
+                    };
+
+                    struct Message {
+                        struct Request;
+                    };
+
+                public:
+                    void recvRequest();
+                    void sendResponce();
+                    /* virtual void parceRequest(std::string& request); */
+                    /* virtual void createResponce(std::string& request); */
+                private:
+                    virtual void sendMessage(std::string url, const std::string& data) override;
+                    virtual void recvMessage(std::string& data) override;
+
+                    void parceRequest();
+                    std::string createResponce();
+            };
+        }; /* HTTP */
+
+    }; /* TCP */
 
 } /* siigix */ 
 

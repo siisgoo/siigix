@@ -1,6 +1,7 @@
 #ifndef SOCKET_HPP_LEMCELXN
 #define SOCKET_HPP_LEMCELXN
 
+#include <stdexcept>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -17,9 +18,10 @@
 #include <map>
 #include <string>
 #include <iostream>
+#include <initializer_list>
 
 #include "BitFlag.hpp"
-/* #include "IOBuff.hpp" */
+/* #include "INData.hpp" */
 #include "Utils.hpp"
 
 #define MAX_CONN 10
@@ -35,6 +37,53 @@ namespace siigix {
         ka_prop_t ka_intvl = 3;
         ka_prop_t ka_cnt   = 5;
     };
+
+    typedef struct sock_opt sock_opt_t;
+    struct sock_opt {
+        int level;
+        int value;
+        int opt;
+        socklen_t optlen;
+
+        sock_opt(int level, int opt, int value, int optlen) :
+            level(level), opt(opt), value(value), optlen(optlen) {  }
+        sock_opt() :
+            sock_opt(0, 0, 0, 0) { }
+    };
+
+    typedef struct sock_opts sock_opts_t;
+    struct sock_opts {
+        int count;
+        sock_opt_t *opts;
+
+        sock_opt_t& operator[](int i) {
+            if (i >= 0 && i < count) {
+                return opts[i];
+            }
+            throw std::domain_error(buildErrorMessage("AHTUNG! Assign error. Assign to opts[] inside sock_opts not in range. passed value: ", i, ". Assignable range 0..", count-1));
+        }
+
+        sock_opts(int l_count) : count(l_count) {
+            opts = new sock_opt_t [count];
+        }
+        sock_opts(const std::initializer_list<sock_opt_t>& opts_list) :
+            sock_opts(opts_list.size())
+        {
+            int i = 0;
+            for (auto& opt: opts_list) {
+                /* opts[0] = opt; */
+                memcpy(&opts[i], &opt, sizeof(opt));
+                i++;
+            }
+        }
+
+        ~sock_opts() {
+            delete[] opts;
+        }
+    };
+
+    static const int USE_OPT_FLAG = true;
+    static const int NOT_USE_OPT_FLAG = false;
 
     /* return count of founded ips and ip+interfacename map */
     int getLocalIP(std::map<std::string, in_addr_t>& ret);
@@ -116,7 +165,8 @@ namespace siigix {
     /* listen for connection */
     class ListenSocket : public BaseSocket {
         public:
-            ListenSocket(port_t port, int max_conn = MAX_CONN);
+            ListenSocket(port_t port, sock_opts_t opts, int max_conn = MAX_CONN);
+            /* ListenSocket(port_t port, int max_conn = MAX_CONN); */
 
             DataSocket Accept();
     };

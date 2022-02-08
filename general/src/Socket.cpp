@@ -101,40 +101,45 @@ namespace siigix {
     bool
     BaseSocket::SetOpts(int level, int option, const int *value, socklen_t opt_len)
     {
-        int rc = setsockopt(_fd, level, option, value, opt_len);
-        switch (rc)
-        {
-            case EBADF:
-                throw std::domain_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: EBADF: ", _fd, " ", strerror(rc)));
+        int rc = setsockopt(getSocketFD(), level, option, value, opt_len);
+        while (true) {
+            if (rc == 0) {
                 break;
+            }
+            switch (errno)
+            {
+                case EBADF:
+                    throw std::domain_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: EBADF: ", _fd, " ", strerror(rc)));
+                    break;
 
-            case EDOM:
-                throw std::domain_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: EDOM: ", _fd, " ", strerror(rc)));
-                break;
+                case EDOM:
+                    throw std::domain_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: EDOM: ", _fd, " ", strerror(rc)));
+                    break;
 
-            case ENOTSOCK:
-            case EINVAL:
-                throw std::domain_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: critical error: ", strerror(rc)));
-                break;
+                case ENOTSOCK:
+                case EINVAL:
+                    throw std::domain_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: critical error: ", strerror(rc)));
+                    break;
 
-            case EISCONN:
-                throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: EISCONN: ", strerror(rc)));
-                break;
+                case EISCONN:
+                    throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: EISCONN: ", strerror(rc)));
+                    break;
 
-            case ENOPROTOOPT:
-                throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: EISCONN: ", strerror(rc)));
-                break;
-                throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: : ", strerror(rc)));
-                break;
+                case ENOPROTOOPT:
+                    throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: EISCONN: ", strerror(rc)));
+                    break;
+                    throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: : ", strerror(rc)));
+                    break;
 
-            case ENOMEM:
-            case ENOBUFS:
-                throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: not anought machine resources: ", strerror(rc)));
-                break;
+                case ENOMEM:
+                case ENOBUFS:
+                    throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: not anought machine resources: ", strerror(rc)));
+                    break;
 
-            default:
-                throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": SetOpts: ???:  ", _fd, " ", strerror(rc)));
-                break;
+                default:
+                    throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: ???:  ", _fd, " ", strerror(rc)));
+                    break;
+            }
         }
 
         return rc == 0 ? true : false;
@@ -210,44 +215,50 @@ namespace siigix {
     ConnectSocket::ConnectSocket(std::string ip, port_t port, struct addrinfo hints) :
         DataSocket(::socket(hints.ai_family, hints.ai_socktype, hints.ai_protocol))
     {
-        struct sockaddr_in serverAddr{};
-        serverAddr.sin_family       = AF_INET;
-        serverAddr.sin_port         = htons(port);
-        serverAddr.sin_addr.s_addr  = inet_addr(ip.c_str());
+        struct addrinfo *addr;
 
-        if (::connect(getSocketFD(), (struct sockaddr*)&serverAddr, sizeof(serverAddr)) != 0)
-        {
+        char szPort[6];
+        sprintf(szPort, "%hu", port);
+
+        if (getaddrinfo(ip.c_str(), szPort, &hints, &addr) == 0) {
+            if (::connect(getSocketFD(), addr->ai_addr, addr->ai_addrlen) == -1) {
+                Close();
+                throw std::runtime_error(buildErrorMessage("ConnectSocket::", __func__, ": connect: ", strerror(errno)));
+            }
+        } else {
             Close();
-            throw std::runtime_error(buildErrorMessage("ConnectSocket::", __func__, ": connect: ", strerror(errno)));
+            throw std::runtime_error(buildErrorMessage("ConnectScoket::", __func__, ": getaddrinfo: ", strerror(errno)));
         }
-        /* struct addrinfo *addr; */
 
-        /* char szPort[6]; */
-        /* sprintf(szPort, "%hu", port); */
-
-        /* if (getaddrinfo(ip.c_str(), szPort, &hints, &addr) == 0) { */
-        /*     if (::connect(getSocketFD(), addr->ai_addr, addr->ai_addrlen) == -1) { */
-        /*         throw std::runtime_error(buildErrorMessage("ConnectSocket::", __func__, ": connect: ", strerror(errno))); */
-        /*     } */
-        /* } else { */
-        /*     throw std::runtime_error(buildErrorMessage("ConnectScoket::", __func__, ": getaddrinfo: ", strerror(errno))); */
-        /* } */
-
-        /* freeaddrinfo(addr); */
+        freeaddrinfo(addr);
     }
 
     /**********************************************************************
     *                            ListenSocket                            *
     **********************************************************************/
 
-    ListenSocket::ListenSocket(port_t port, int max_conn) :
-        BaseSocket(::socket(PF_INET, SOCK_STREAM, 0))
+    ListenSocket::ListenSocket(port_t port, sock_opts_t opts, int max_conn) :
+        BaseSocket(::socket(AF_INET, SOCK_STREAM, 0))
     {
-        struct sockaddr_in l_addr;
-        bzero((char*)&l_addr, sizeof(l_addr));
+        struct sockaddr_in l_addr {};
+        /* bzero((char*)&l_addr, sizeof(l_addr)); */
         l_addr.sin_family       = AF_INET;
         l_addr.sin_port         = htons(port);
         l_addr.sin_addr.s_addr  = htonl(INADDR_ANY);
+        /* l_addr.sin_addr.s_addr  = INADDR_ANY; */
+
+        //set options
+        for (int i = 0; i < opts.count; i++) {
+            try {
+                SetOpts(opts[i].level, opts[i].opt, &opts[i].value, opts[i].optlen);
+            } catch (std::exception& except) {
+                std::cerr << except.what();
+                throw "AHTUNG! cant passed options";
+            } catch (const char* errmsg) {
+                std::cerr << errmsg << std::endl;
+                throw "AHTUNG! cant passed options";
+            }
+        }
 
         if (::bind(getSocketFD(), (struct sockaddr*)&l_addr, sizeof(l_addr)) != 0) {
             Close();

@@ -1,6 +1,6 @@
 /* #include <gtest/gtest.h> */
 
-#include <tcp-server.hpp>
+#include <Server.hpp>
 #include <General.hpp>
 
 #include <iostream>
@@ -13,15 +13,15 @@ int
 main(int argc, char** argv)
 {
     try {
-        ConnectSocket conn("127.0.0.1", 8080);
+        ConnectSocket conn(argv[1], atoi(argv[2]));
         TCP::Protocol proto(conn);
-        proto.sendMessage("", "LOOOOOOOOK!!! this is server send message");
+        proto.sendMessage("", "LOOOOOOOOK!!! this is message from CLIENT");
 
         std::string msg;
         proto.recvMessage(msg);
         std::cout << "Recived message: " << msg << std::endl;
     } catch (std::exception& except) {
-        std::cerr << except.what();
+        std::cerr << except.what() << std::endl;
     }
 
     return 0;

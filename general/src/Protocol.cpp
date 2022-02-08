@@ -32,6 +32,8 @@ namespace siigix {
         void
         Protocol::sendMessage(std::string url, const std::string& data)
         {
+            std::string header = "Host: " + url;
+            _socket.sendMessage(header.c_str(), header.size());
             _socket.sendMessage(data.c_str(), data.size());
             _socket.sendMessageClose();
         }
@@ -48,7 +50,7 @@ namespace siigix {
                 size_t dataMax = data.capacity() - 1;
                 char   *buff   = &data[0];
 
-                size_t got = _socket.recvMessage(buff, dataMax - dataRead, [](size_t) { return false; });
+                size_t got = _socket.recvMessage(buff + dataRead, dataMax - dataRead, [](size_t) { return false; });
                 dataRead  += got;
 
                 if (got == 0) {

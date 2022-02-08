@@ -15,7 +15,7 @@ namespace TCP {
             connection_hndl_fn_t conn_hndl_fn,
             connection_hndl_fn_t disconn_hdnl_fn,
             port_t port, std::string ip, int threads) :
-        _socket(port),
+        _socket(port, { sock_opt(SOL_SOCKET, SO_REUSEADDR, USE_OPT_FLAG, sizeof(USE_OPT_FLAG)) }),
         _data_hndl_fn(d_hndl_fn),
         _conn_hndl_fn(conn_hndl_fn),
         _disconn_hndl_fn(disconn_hdnl_fn),
@@ -36,14 +36,15 @@ namespace TCP {
             stop();
         }
 
-        /* int reuseaddr = 1; */
+        _status = ServerStatus::running;
 
-        /* _socket.SetOpts(SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(reuseaddr)); */
+        if (!_socket.isValid()) {
+            _status = ServerStatus::shutdowned;
+            throw "SOCKET ERRRRRRRRRRRRRRROR!";
+        }
 
-        std::function<void()> hal = [this]() { handleAcceptLoop(); };
-        std::function<void()> wdl = [this]() { waitDataLoop(); };
-        _thread_pool.addJob(hal);
-        _thread_pool.addJob(wdl);
+        _thread_pool.addJob([this]() { handleAcceptLoop(); });
+        _thread_pool.addJob([this]() { waitDataLoop(); });
 
         return _status;
     }
@@ -61,7 +62,7 @@ namespace TCP {
 
     bool
     Server::connectClient(std::string ip, const port_t port, connection_hndl_fn_t connect_hndl) {
-        std::unique_ptr<Client> client(new Client(std::move(ConnectSocket(ip, port))));
+        std::unique_ptr<Client> client(new Client(ConnectSocket(ip, port)) );
         connect_hndl(*client);
         _client_mutex.lock();
         _clients.emplace_back(std::move(client));
@@ -108,8 +109,8 @@ namespace TCP {
     void
     Server::handleAcceptLoop() {
         if (_status == ServerStatus::running) {
-            /* TODO AHTUNG!!! not clear memeory on error!!!!!!!!!!!!!! */
-            std::unique_ptr<Client> client( new Client( std::move(_socket.Accept()) ) );
+            /* TODO AHTUNG!!! not clear memeory on error?!!!!!!!!!!!!!! */
+            std::unique_ptr<Client> client( new Client(_socket.Accept()) );
             _conn_hndl_fn(*client);
             _client_mutex.lock();
             _clients.emplace_back(std::move(client));
@@ -143,7 +144,7 @@ namespace TCP {
                     });
                 }
             }
-            else if(client->_status == ClientStatus::disconnected) /* on client disconnected */
+            else if (client->_status == ClientStatus::disconnected) /* on client disconnected */
             {
                 _thread_pool.addJob([this, &client, it] () {
                     client->_access_mutex.lock();

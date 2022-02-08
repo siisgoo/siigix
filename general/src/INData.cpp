@@ -1,27 +1,27 @@
-#include <IOBuff.hpp>
+#include <INData.hpp>
 #include <string.h>
 
 namespace siigix {
 
-IOBuff::IOBuff(size_t cap) :
+INData::INData(size_t cap) :
     _len(0), _size(cap),
     _buff(nullptr)
 {
     resize(cap);
 }
 
-IOBuff::IOBuff(const IOBuff& other)
+INData::INData(const INData& other)
 {
     resize(other.size());
     memcpy(_buff, other.read(), other.len());
 }
 
-IOBuff::~IOBuff()
+INData::~INData()
 {  }
 
 //todo add chunk
 bool
-IOBuff::add(void *buff, size_t len, size_t chunk_size) {
+INData::add(void *buff, size_t len, size_t chunk_size) {
     //im not loose somesing?
     if (len == 0) {
         return true;
@@ -37,7 +37,7 @@ IOBuff::add(void *buff, size_t len, size_t chunk_size) {
 }
 
 bool
-IOBuff::add(std::string buff)
+INData::add(std::string buff)
 {
     char str[buff.length()];
     memcpy(str, buff.c_str(), buff.length());
@@ -46,14 +46,14 @@ IOBuff::add(std::string buff)
 }
 
 bool
-IOBuff::add(const IOBuff& buff)
+INData::add(const INData& buff)
 {
     size_t req_size = _len + buff.len();
     if (buff.len() <= 0) { /* do nothing */
         return true;
     } else if (_size < req_size) { /* need resize */
         if (!resize(req_size)) {
-            throw "Cant resize IOBuff";
+            throw "Cant resize INData";
         }
     }
     ::memcpy(_buff + _len, buff.pointer(), buff.len());
@@ -61,7 +61,7 @@ IOBuff::add(const IOBuff& buff)
 }
 
 unsigned char *
-IOBuff::read(size_t offset) const {
+INData::read(size_t offset) const {
     if (offset < 0) {
         return _buff;
     } else {
@@ -71,7 +71,7 @@ IOBuff::read(size_t offset) const {
 }
 
 bool
-IOBuff::remove(size_t offset, size_t len) {
+INData::remove(size_t offset, size_t len) {
     if (len == 0) { //zochem togda, ya luchhe popiu chi?
     } else if (len + offset > _size) {
         return false;
@@ -82,7 +82,7 @@ IOBuff::remove(size_t offset, size_t len) {
 }
 
 bool
-IOBuff::resize(size_t new_size) {
+INData::resize(size_t new_size) {
     if (new_size <= 0) { //clean
         _size = _len = 0;
         delete [] _buff;
@@ -107,9 +107,9 @@ IOBuff::resize(size_t new_size) {
     return true;
 }
 
-unsigned char* IOBuff::pointer() const { return _buff; } //CARE, may be kause to vare big arror
-size_t IOBuff::len()  const { return _len; }
-size_t IOBuff::size() const { return _size; }
-bool   IOBuff::drop()       { return resize(0); }
+unsigned char* INData::pointer() const { return _buff; } //CARE, may be kause to vare big arror
+size_t INData::len()  const { return _len; }
+size_t INData::size() const { return _size; }
+bool   INData::drop()       { return resize(0); }
 
 } /* siigix */

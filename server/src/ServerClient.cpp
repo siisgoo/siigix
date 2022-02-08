@@ -6,7 +6,7 @@ namespace TCP {
         _socket(std::move(sock)),
         _protocol(_socket)
     {
-        /* _socket.EnableKeepAlive(); */
+        _socket.EnableKeepAlive();
     }
 
     Server::Client::~Client()

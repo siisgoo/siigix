@@ -34,7 +34,7 @@ ENDIF()
 #####################
 
 add_subdirectory(general)
-add_subdirectory(tcp-server)
+add_subdirectory(server)
 
 ######################
 #  creating package  #
@@ -72,18 +72,18 @@ install(
 #  installing export files  #
 #############################
 
-install( TARGETS tcp-server                    DESTINATION ${INSTALL_PREFIX}/lib )
-install( TARGETS general                       DESTINATION ${INSTALL_PREFIX}/lib )
-install( FILES   ${TCP_SERVER_HEADERS_PUBLIC}  DESTINATION ${INSTALL_PREFIX}/include/ )
+install( TARGETS ${SERVER_PROJECT_NAME}        DESTINATION ${INSTALL_PREFIX}/lib                 )
+install( TARGETS ${GENERAL_PROJECT_NAME}       DESTINATION ${INSTALL_PREFIX}/lib                 )
+install( FILES   ${TCP_SERVER_HEADERS_PUBLIC}  DESTINATION ${INSTALL_PREFIX}/include/            )
 install( FILES   ${TCP_SERVER_HEADERS_PRIVATE} DESTINATION ${INSTALL_PREFIX}/include/tcp-server/ )
-install( FILES   ${GENERAL_HEADERS_PUBLIC}     DESTINATION ${INSTALL_PREFIX}/include/ )
-install( FILES   ${GENERAL_HEADERS_PRIVATE}    DESTINATION ${INSTALL_PREFIX}/include/general )
+install( FILES   ${GENERAL_HEADERS_PUBLIC}     DESTINATION ${INSTALL_PREFIX}/include/            )
+install( FILES   ${GENERAL_HEADERS_PRIVATE}    DESTINATION ${INSTALL_PREFIX}/include/general     )
 
 #############
 #  testing  #
 #############
 
-# if (BUILD_TESTING)
+if (BUILD_TESTING)
     enable_testing()
     add_subdirectory(test)
-# endif (BUILD_TESTING)
+endif (BUILD_TESTING)

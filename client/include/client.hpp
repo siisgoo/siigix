@@ -16,7 +16,7 @@ using namespace INet;
 
 namespace TCP {
     class Client {
-        typedef std::function<void(IOBuff&)> client_data_hndl_fn_t;
+        typedef std::function<void(INData&)> client_data_hndl_fn_t;
 
         enum ThreadManagementType : bool {
             single_thread = false,
@@ -39,9 +39,9 @@ namespace TCP {
             ClientStatus connect(struct addrinfo conn_to, inet_port_t port);
             ClientStatus disconnected();
 
-            bool send(IOBuff& data);
-            IOBuff recive();
-            IOBuff reciveSync();
+            bool send(INData& data);
+            INData recive();
+            INData reciveSync();
 
             /* void setHandler(data_hndl_fn_t nfn); */
             void joinHandler();
@@ -54,7 +54,7 @@ namespace TCP {
             ThreadManagementType thread_management_type;
             Thread threads;
             std::mutex _mutex;
-            client_data_hndl_fn_t handler_func = [](IOBuff&){};
+            client_data_hndl_fn_t handler_func = [](INData&){};
             ClientStatus _status = ClientStatus::disconnected;
             Socket _socket;
             struct sockaddr_in _address;

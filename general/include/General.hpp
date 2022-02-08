@@ -3,7 +3,7 @@
 
 #include "general/Utils.hpp"
 #include "general/BitFlag.hpp"
-#include "general/IOBuff.hpp"
+#include "general/INData.hpp"
 #include "general/Log.hpp"
 #include "general/Socket.hpp"
 #include "general/Status.hpp"

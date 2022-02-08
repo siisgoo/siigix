@@ -7,11 +7,11 @@
 #include <string.h>
 
 namespace siigix {
-    class IOBuff {
+    class INData {
         public:
-            IOBuff(size_t cap = 1024);
-            IOBuff(const IOBuff& other);
-            virtual ~IOBuff();
+            INData(size_t cap = 1024);
+            INData(const INData& other);
+            virtual ~INData();
 
             operator char*() { return reinterpret_cast<char*>(_buff); }
             operator void*() { return static_cast<void*>(_buff); }
@@ -20,7 +20,7 @@ namespace siigix {
             //todo add chunk
             bool add(void *buff, size_t len, size_t chunk_size = 8);
             bool add(std::string buff);
-            bool add(const IOBuff& buff);
+            bool add(const INData& buff);
             unsigned char *read(size_t offset = -1) const;
 
             unsigned char *pointer() const;

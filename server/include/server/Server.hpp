@@ -22,7 +22,7 @@
 #include <general/Socket.hpp>
 #include <general/Protocol.hpp>
 #include <general/ThreadPool.hpp>
-#include <general/IOBuff.hpp>
+/* #include <general/INData.hpp> */
 #include <general/Status.hpp>
 
 namespace siigix {
@@ -53,8 +53,10 @@ namespace TCP {
                     ClientStatus getStatus() const  { return _status;}
                     int disconnect();
 
-                    bool sendMessage(const IOBuff&);
-                    bool recvMessage(IOBuff&);
+                    //return true if send success
+                    bool sendMessage(const std::string& data);
+                    //return true if recive success, data len>0
+                    bool recvMessage(std::string& data);
                 private:
                     std::mutex _access_mutex;
 
@@ -68,10 +70,10 @@ namespace TCP {
             };
 
             typedef std::function<void(Client&)>                connection_hndl_fn_t;
-            typedef std::function<void(const IOBuff&, Client&)> data_hndl_fn_t;
+            typedef std::function<void(const std::string& data, Client&)> data_hndl_fn_t;
 
             static constexpr auto default_conn_hndl_fn = [](Client&){};
-            static constexpr auto default_data_hndl_fn = [](const IOBuff&, Client&){};
+            static constexpr auto default_data_hndl_fn = [](const std::string& data, Client&){};
 
             typedef std::list<std::unique_ptr<Client>>::iterator ClientIterator;
 
@@ -107,12 +109,12 @@ namespace TCP {
              * return bool of success */
             bool connectClient(std::string ip, const port_t port, connection_hndl_fn_t connect_hndl);
 
-            /* Send data from IOBuff load to all connected clients */
-            void sendToAll(const IOBuff& load);
+            /* Send data from INData load to all connected clients */
+            void sendToAll(const std::string& load);
 
-            /* Send data from IOBuff load to connected client on address ip and port port
+            /* Send data from INData load to connected client on address ip and port port
              * return bool of success */
-            bool sendToClient(std::string ip, port_t port, const IOBuff& load);
+            bool sendToClient(std::string ip, port_t port, const std::string& load);
 
             /* Disconnect client with IP and port / disconnect client by its object
              * return bool of success */
@@ -136,7 +138,7 @@ namespace TCP {
             data_hndl_fn_t       _data_hndl_fn    = default_data_hndl_fn;
 
             ThreadPool      _thread_pool;
-            ServerStatus    _status;
+            ServerStatus    _status = ServerStatus::shutdowned;
 
             std::list<std::unique_ptr<Client>> _clients;
             std::mutex _client_mutex;
