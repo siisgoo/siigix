@@ -11,12 +11,15 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
+#include <string.h>
 
 #include <map>
 #include <string>
+#include <iostream>
 
 #include "BitFlag.hpp"
-#include "IOBuff.hpp"
+/* #include "IOBuff.hpp" */
 #include "Utils.hpp"
 
 #define MAX_CONN 10

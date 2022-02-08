@@ -26,7 +26,7 @@ namespace TCP {
     }
 
     bool
-    Server::Client::recvMessage(IOBuff& data)
+    Server::Client::recvMessage(std::string& data)
     {
         if(_status != ClientStatus::connected) {
             return false;
@@ -34,7 +34,7 @@ namespace TCP {
 
         _protocol.recvMessage(data);
 
-        if (data.len() <= 0) {
+        if (data.length() <= 0) { //error
             disconnect();
             return false;
         }
@@ -43,7 +43,7 @@ namespace TCP {
     }
 
     bool
-    Server::Client::sendMessage(const IOBuff& data)
+    Server::Client::sendMessage(const std::string& data)
     {
         if (_status != ClientStatus::connected) {
             return false;

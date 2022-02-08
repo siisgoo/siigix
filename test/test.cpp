@@ -22,7 +22,7 @@ on_disconnect(TCP::Server::Client& cli)
 }
 
 void
-on_data_recive(const IOBuff& data, TCP::Server::Client& cli)
+on_data_recive(const std::string& data, TCP::Server::Client& cli)
 {
     std::cout << "data recved" << std::endl;
 }
@@ -33,43 +33,46 @@ on_data_recive(const IOBuff& data, TCP::Server::Client& cli)
 int
 main(int argc, char** argv)
 {
-    /* TCP::Server server; */
-    /* server.setConnHandler(on_connect); */
-    /* server.setDataHandler(on_data_recive); */
-    /* server.setDisconnHandler(on_disconnect); */
+    TCP::Server server(8080);
+    server.setConnHandler(on_connect);
+    server.setDataHandler(on_data_recive);
+    server.setDisconnHandler(on_disconnect);
 
-    /* try { */
-    /*     int rc = server.start(); */
-    /*     if (rc == TCP::Server::ServerStatus::running) { */
-    /*         std::cerr << "Server started succesfully!" << std::endl; */
-    /*         server.joinLoop(); */
-    /*     } else { */
-    /*         std::cerr << "Server initialization FAILED!" << std::endl; */
-    /*     } */
-    /* } catch (std::exception& except) { */
-    /*     std::cerr << except.what(); */
-    /* } */
+    try {
+        int rc = server.start();
+        /* if (rc == TCP::Server::ServerStatus::running) { */
+            std::cerr << "Server started succesfully!" << std::endl;
+            std::cerr.flush();
+            server.joinLoop();
+        /* } else { */
+        /*     std::cerr << "Server initialization FAILED!" << std::endl; */
+        /*     std::cerr.flush(); */
+        /* } */
+    } catch (std::exception& except) {
+        std::cerr << except.what();
+    } catch (const char* errmsg) {
+        std::cerr << errmsg << std::endl;
+    }
 
     /* ::testing::InitGoogleTest(&argc, argv); */
     /* return RUN_ALL_TESTS(); */
 
-    try {
-        ListenSocket server(8080);
-        while (true) {
-            DataSocket acc = server.Accept();
-            TCP::Protocol accTCP(acc);
+    /* try { */
+    /*     ListenSocket server(8080); */
+    /*     while (true) { */
+    /*         DataSocket acc = server.Accept(); */
+    /*         TCP::Protocol accTCP(acc); */
 
-            IOBuff buff;
-            accTCP.recvMessage(buff);
-            std::cout << static_cast<char*>(buff) << std::endl;
+    /*         std::string recvMsg; */
+    /*         accTCP.recvMessage(recvMsg); */
+    /*         std::cout << recvMsg << std::endl; */
+    /*         std::cout.flush(); */
 
-            IOBuff sendBuff;
-            sendBuff.add("Jeez");
-            accTCP.sendMessage("", sendBuff);
-        }
-    } catch (std::exception& except) {
-        std::cerr << except.what();
-    }
+    /*         accTCP.sendMessage("", "Sending JeeZZZZZZZZZZ!!!"); */
+    /*     } */
+    /* } catch (std::exception& except) { */
+    /*     std::cerr << except.what(); */
+    /* } */
 
     return 0;
 }

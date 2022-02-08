@@ -70,8 +70,8 @@ ThreadPool::worker() {
         {
             std::unique_lock lock(_queue_mutex);
             _condition.wait(lock, [this](){return !_job_queue.empty() || _terminated;});
-            if(_terminated) return;
-            job = _job_queue.front();
+            if(_terminated) return; //exit
+            job = _job_queue.front(); //run
             _job_queue.pop();
         }
         job();
@@ -81,7 +81,7 @@ ThreadPool::worker() {
 void
 ThreadPool::setup(unsigned int threads) {
     _threads.clear();
-    for (unsigned int i; i < threads; i++) {
+    for (unsigned int i = 0; i < threads; i++) {
         _threads.emplace_back(&ThreadPool::worker, this);
     }
 }

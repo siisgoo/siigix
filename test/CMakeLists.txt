@@ -12,9 +12,16 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-add_executable(${PROJECT_NAME} test.cpp)
+add_executable(test_server test.cpp)
+add_executable(test_client test_client.cpp)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC
+target_link_libraries(test_server PUBLIC
+    siigix::general
+    siigix::tcp-server
+    # gtest_main
+)
+
+target_link_libraries(test_client PUBLIC
     siigix::general
     siigix::tcp-server
     # gtest_main

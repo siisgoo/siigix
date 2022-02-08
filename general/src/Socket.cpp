@@ -241,23 +241,23 @@ namespace siigix {
     **********************************************************************/
 
     ListenSocket::ListenSocket(port_t port, int max_conn) :
-        BaseSocket(::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP))
+        BaseSocket(::socket(PF_INET, SOCK_STREAM, 0))
     {
         struct sockaddr_in l_addr;
         bzero((char*)&l_addr, sizeof(l_addr));
         l_addr.sin_family       = AF_INET;
         l_addr.sin_port         = htons(port);
-        l_addr.sin_addr.s_addr  = INADDR_ANY;
+        l_addr.sin_addr.s_addr  = htonl(INADDR_ANY);
 
         if (::bind(getSocketFD(), (struct sockaddr*)&l_addr, sizeof(l_addr)) != 0) {
             Close();
-            throw; std::runtime_error(buildErrorMessage("ServerSocket::", __func__, ": bind: ", strerror(errno)));
+            throw std::runtime_error(buildErrorMessage("ListenSocket::", __func__, ": bind: ", strerror(errno)));
         }
 
         if (::listen(getSocketFD(), max_conn) != 0)
         {
             Close();
-            throw; std::runtime_error(buildErrorMessage("ServerSocket::", __func__, ": listen: ", strerror(errno)));
+            throw std::runtime_error(buildErrorMessage("ListenSocket::", __func__, ": listen: ", strerror(errno)));
         }
     }
 
@@ -265,14 +265,14 @@ namespace siigix {
     ListenSocket::Accept()
     {
         if (getSocketFD() == INVALID_SOCK) {
-            throw std::logic_error(buildErrorMessage("ServerSocket::", __func__, ": accept called on a bad socket object (this object was moved)"));
+            throw std::logic_error(buildErrorMessage("ListenSocket::", __func__, ": accept called on a bad socket object (this object was moved)"));
         }
 
         struct sockaddr_storage serverStorage;
         socklen_t addr_size = sizeof serverStorage;
         int newSocket = ::accept(getSocketFD(), (struct sockaddr*)&serverStorage, &addr_size);
-        if (newSocket == -1) {
-            throw std::runtime_error(buildErrorMessage("ServerSocket:", __func__, ": accept: ", strerror(errno)));
+        if (newSocket == INVALID_SOCK) {
+            throw std::runtime_error(buildErrorMessage("ListenSocket:", __func__, ": accept: ", strerror(errno)));
         }
         return DataSocket(newSocket);
     }
@@ -336,9 +336,8 @@ namespace siigix {
     void
     DataSocket::sendMessageClose()
     {
-        if (::shutdown(getSocketFD(), SHUT_WR) != 0)
-        {
-            throw std::domain_error(buildErrorMessage("HTTPProtocol::", __func__, ": shutdown: critical error: ", strerror(errno)));
+        if (::shutdown(getSocketFD(), SHUT_WR) != 0) {
+            throw std::domain_error(buildErrorMessage("TCP::Protocol::", __func__, ": shutdown: critical error: ", strerror(errno)));
         }
     }
 

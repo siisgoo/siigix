@@ -61,17 +61,11 @@ namespace TCP {
 
     bool
     Server::connectClient(std::string ip, const port_t port, connection_hndl_fn_t connect_hndl) {
-        try {
-            std::unique_ptr<Client> client(new Client(std::move(ConnectSocket(ip, port))));
-            connect_hndl(*client);
-            _client_mutex.lock();
-            _clients.emplace_back(std::move(client));
-            _client_mutex.unlock();
-        } catch (...) {
-            std::exception_ptr p = std::current_exception();
-            std::cerr <<(p ? p.__cxa_exception_type()->name() : "null") << std::endl;
-            return false;
-        }
+        std::unique_ptr<Client> client(new Client(std::move(ConnectSocket(ip, port))));
+        connect_hndl(*client);
+        _client_mutex.lock();
+        _clients.emplace_back(std::move(client));
+        _client_mutex.unlock();
 
         return true;
     }
@@ -95,7 +89,7 @@ namespace TCP {
     }
 
     bool
-    Server::sendToClient(std::string ip, port_t port, const IOBuff& data) {
+    Server::sendToClient(std::string ip, port_t port, const std::string& data) {
         bool data_is_sended = false;
         for (std::unique_ptr<Client>& client : _clients)
             if (client->getIP() == ip && client->getPort() == port) {
@@ -106,7 +100,7 @@ namespace TCP {
     }
 
     void
-    Server::sendToAll(const IOBuff& data) {
+    Server::sendToAll(const std::string& data) {
         for(std::unique_ptr<Client>& client : _clients)
             client->_protocol.sendMessage(client->_ip, data);
     }
@@ -120,8 +114,6 @@ namespace TCP {
             _client_mutex.lock();
             _clients.emplace_back(std::move(client));
             _client_mutex.unlock();
-        } else {
-                //very big error
         }
 
         //loop
@@ -134,7 +126,7 @@ namespace TCP {
     Server::waitDataLoop()
     {
         std::lock_guard lock(_client_mutex);
-        IOBuff data;
+        std::string data;
 
         /* for all clients */
         for (auto it = _clients.begin(), end = _clients.end(); it != end; ++it)

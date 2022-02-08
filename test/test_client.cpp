@@ -15,11 +15,11 @@ main(int argc, char** argv)
     try {
         ConnectSocket conn("127.0.0.1", 8080);
         TCP::Protocol proto(conn);
-        proto.sendMessage("", "LOOOOOOOOK!!! asdf");
+        proto.sendMessage("", "LOOOOOOOOK!!! this is server send message");
 
         std::string msg;
         proto.recvMessage(msg);
-        std::cout << msg << std::endl;
+        std::cout << "Recived message: " << msg << std::endl;
     } catch (std::exception& except) {
         std::cerr << except.what();
     }
