@@ -117,27 +117,36 @@ namespace siigix {
 
             virtual ~BaseSocket();
 
+            virtual std::string getIP() const   { return _ip; }
+            virtual port_t      getPort() const { return _port; }
+
         protected:
             BaseSocket(int fd);
 
             int getSocketFD() const { return _fd; }
 
+            void getSockName(struct sockaddr *addr, socklen_t *len) const;
+            void getPeerName(struct sockaddr *addr, socklen_t *len) const;
+
+            void setIP(void* addr, socklen_t len);
+            void setPort(void* addr, socklen_t len);
+
         private:
-            int _fd;
+            int         _fd;
+            std::string _ip;
+            port_t      _port;
             KeepAliveConfig _ka_conf;
 
     };
 
     /**********************************************************************
-    *                             DataSocket                             *
+    *                             TransSocket                             *
     **********************************************************************/
 
     /* send/recive data to socket */
-    class DataSocket : public BaseSocket {
+    class TransSocket : public BaseSocket {
         public:
-            DataSocket(int fd) :
-                BaseSocket(fd)
-            { }
+            TransSocket(int fd);
 
             template<typename Fn>
             size_t recvMessage(char *data, size_t size, Fn scanForEnd = [](size_t) { return false; });
@@ -152,10 +161,17 @@ namespace siigix {
 
     /* Connect to remote host
      * Avaible to send/recive data */
-    class ConnectSocket : public DataSocket {
+    class ConnectSocket : public TransSocket {
         public:
             ConnectSocket(std::string ip, port_t port,
                     struct addrinfo hints = { .ai_family = AF_INET, .ai_socktype = SOCK_STREAM, .ai_protocol = 0 });
+
+            std::string getIP() const   { return _ip; }
+            port_t      getPort() const { return _port; }
+
+        private:
+            std::string _ip;
+            port_t      _port;
     };
 
     /**********************************************************************
@@ -166,77 +182,12 @@ namespace siigix {
     class ListenSocket : public BaseSocket {
         public:
             ListenSocket(port_t port, sock_opts_t opts, int max_conn = MAX_CONN);
-            /* ListenSocket(port_t port, int max_conn = MAX_CONN); */
+            ListenSocket(port_t port, int max_conn = MAX_CONN);
 
-            DataSocket Accept();
+            TransSocket Accept();
     };
 
-    template<typename F>
-    std::size_t DataSocket::recvMessage(char *data, size_t size, F scanForEnd)
-    {
-        if (getSocketFD() == 0) {
-            throw std::logic_error(buildErrorMessage("DataSocket::", __func__, ": accept called on a bad socket object (this object was moved)"));
-        }
-
-        size_t dataRead  = 0;
-        while(dataRead < size)
-        {
-            // The inner loop handles interactions with the socket.
-            size_t get = read(getSocketFD(), data + dataRead, size - dataRead);
-            if (get == static_cast<std::size_t>(-1)) {
-                switch(errno) {
-                    case EBADF:
-                    case EFAULT:
-                    case EINVAL:
-                    case ENXIO:
-                    {
-                        // Fatal error. Programming bug
-                        throw std::domain_error(buildErrorMessage("DataSocket::", __func__, ": read: critical error: ", strerror(errno)));
-                    }
-                    case EIO:
-                    case ENOBUFS:
-                    case ENOMEM:
-                    {
-                       // Resource acquisition failure or device error
-                        throw std::runtime_error(buildErrorMessage("DataSocket::", __func__, ": read: resource failure: ", strerror(errno)));
-                    }
-                    case EINTR:
-                        // TODO: Check for user interrupt flags.
-                        //       Beyond the scope of this project
-                        //       so continue normal operations.
-                    case ETIMEDOUT:
-                    case EAGAIN:
-                    {
-                        // Temporary error.
-                        // Simply retry the read.
-                        continue;
-                    }
-                    case ECONNRESET:
-                    case ENOTCONN:
-                    {
-                        // Connection broken.
-                        // Return the data we have available and exit
-                        // as if the connection was closed correctly.
-                        get = 0;
-                        break;
-                    }
-                    default:
-                    {
-                        throw std::runtime_error(buildErrorMessage("DataSocket::", __func__, ": read: returned -1: ", strerror(errno)));
-                    }
-                }
-            }
-            if (get == 0) {
-                break;
-            }
-            dataRead += get;
-            if (scanForEnd(dataRead)) {
-                break;
-            }
-        }
-
-        return dataRead;
-    }
+    #include "Socket.inl"
 
 } /* siigix */ 
 

@@ -21,7 +21,7 @@ namespace siigix {
             }
     };
 
-    IProtocol::IProtocol(DataSocket& ds) :
+    IProtocol::IProtocol(TransSocket& ds) :
         _socket(ds)
     {  }
 
@@ -30,12 +30,10 @@ namespace siigix {
 
     namespace TCP {
         void
-        Protocol::sendMessage(std::string url, const std::string& data)
+        Protocol::sendMessage(const std::string& data)
         {
-            std::string header = "Host: " + url;
-            _socket.sendMessage(header.c_str(), header.size());
             _socket.sendMessage(data.c_str(), data.size());
-            _socket.sendMessageClose();
+            /* _socket.sendMessageClose(); */
         }
 
         void
@@ -60,9 +58,13 @@ namespace siigix {
                 data.reserve(data.capacity() * 1.5 + 10);
             }
         }
+
+        /* namespace HTTP { */
+        /*     Protocol::Protocol(TransSocket& socket) : */
+        /*         TCP::Protocol(socket) */
+        /*     { */
+        /*     } */
+        /* } /1* HTTP *1/ */ 
+
     } /* TCP */ 
-
-    namespace HTTP {
-    } /* HTTP */ 
-
 } /* siigix */ 

@@ -5,17 +5,6 @@
 
 namespace siigix {
     namespace TCP {
-        enum ServerStatus {
-            running,
-            shutdowned,
-            ERR_SERVER_SOCKET, //deligate diagnostic to Socket class
-        };
-
-        enum ClientStatus {
-            connected,
-            disconnected,
-            ERR_CLI_SOCKET, //deligate diagnostic to Socket class
-        };
     } /* TCP */ 
 } /* siigix */ 
 

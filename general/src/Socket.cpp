@@ -1,5 +1,6 @@
 #include <general/Socket.hpp>
 #include <stdexcept>
+#include <stdlib.h>
 
 namespace siigix {
     //IS OK??????????????????????? TODO
@@ -92,6 +93,48 @@ namespace siigix {
         }
     }
 
+    void
+    BaseSocket::getPeerName(struct sockaddr *addr, socklen_t *len) const
+    {
+        int rc = ::getpeername(getSocketFD(), addr, len);
+        if (rc == -1) {
+            switch (errno) {
+                case EBADF:
+                case EINVAL:
+                case ENOTCONN:
+                case ENOTSOCK:
+                case EOPNOTSUPP:
+                case ENOBUFS:
+                    throw std::domain_error(buildErrorMessage("BaseSocket::", __func__, ": getsockname: ", _fd, " ", strerror(rc)));
+                    break;
+                default:
+                    throw std::domain_error(buildErrorMessage("BaseSocket::", __func__, ": unknown error: ", _fd, " ", strerror(rc)));
+                    break;
+            }
+        }
+    }
+
+    void
+    BaseSocket::getSockName(struct sockaddr *addr, socklen_t *len) const
+    {
+        int rc = ::getsockname(getSocketFD(), addr, len);
+        if (rc == -1) {
+            switch (errno) {
+                case EBADF:
+                case EINVAL:
+                case ENOTCONN:
+                case ENOTSOCK:
+                case EOPNOTSUPP:
+                case ENOBUFS:
+                    throw std::domain_error(buildErrorMessage("BaseSocket::", __func__, ": getsockname: ", _fd, " ", strerror(errno)));
+                    break;
+                default:
+                    throw std::domain_error(buildErrorMessage("BaseSocket::", __func__, ": unknown error: ", _fd, " ", strerror(errno)));
+                    break;
+            }
+        }
+    }
+
     bool
     BaseSocket::GetOpts(int level, int option, void *value, socklen_t *opt_len) const
     {
@@ -109,35 +152,21 @@ namespace siigix {
             switch (errno)
             {
                 case EBADF:
-                    throw std::domain_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: EBADF: ", _fd, " ", strerror(rc)));
-                    break;
-
                 case EDOM:
-                    throw std::domain_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: EDOM: ", _fd, " ", strerror(rc)));
-                    break;
-
                 case ENOTSOCK:
                 case EINVAL:
-                    throw std::domain_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: critical error: ", strerror(rc)));
-                    break;
-
                 case EISCONN:
-                    throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: EISCONN: ", strerror(rc)));
-                    break;
-
                 case ENOPROTOOPT:
-                    throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: EISCONN: ", strerror(rc)));
-                    break;
-                    throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: : ", strerror(rc)));
+                    throw std::domain_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: ", strerror(errno)));
                     break;
 
                 case ENOMEM:
                 case ENOBUFS:
-                    throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: not anought machine resources: ", strerror(rc)));
+                    throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: not anought machine resouerrnoes: ", strerror(errno)));
                     break;
 
                 default:
-                    throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: ???:  ", _fd, " ", strerror(rc)));
+                    throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": setsockopt: ???: socket: ", _fd, " ", strerror(errno)));
                     break;
             }
         }
@@ -149,7 +178,7 @@ namespace siigix {
     BaseSocket::Close()
     {
         if (!isValid()) {
-            throw std::logic_error(buildErrorMessage("DataSocket::", __func__, ": accept called on a bad socket object (this object was moved)"));
+            throw std::logic_error(buildErrorMessage("TransSocket::", __func__, ": accept called on a bad socket object (this object was moved)"));
         }
 
         while (true) {
@@ -213,7 +242,7 @@ namespace siigix {
     **********************************************************************/
 
     ConnectSocket::ConnectSocket(std::string ip, port_t port, struct addrinfo hints) :
-        DataSocket(::socket(hints.ai_family, hints.ai_socktype, hints.ai_protocol))
+        TransSocket(::socket(hints.ai_family, hints.ai_socktype, hints.ai_protocol))
     {
         struct addrinfo *addr;
 
@@ -241,11 +270,9 @@ namespace siigix {
         BaseSocket(::socket(AF_INET, SOCK_STREAM, 0))
     {
         struct sockaddr_in l_addr {};
-        /* bzero((char*)&l_addr, sizeof(l_addr)); */
         l_addr.sin_family       = AF_INET;
         l_addr.sin_port         = htons(port);
         l_addr.sin_addr.s_addr  = htonl(INADDR_ANY);
-        /* l_addr.sin_addr.s_addr  = INADDR_ANY; */
 
         //set options
         for (int i = 0; i < opts.count; i++) {
@@ -272,28 +299,36 @@ namespace siigix {
         }
     }
 
-    DataSocket
+    ListenSocket::ListenSocket(port_t port, int max_conn) :
+        ListenSocket(port, {}, max_conn) {  }
+
+    TransSocket
     ListenSocket::Accept()
     {
         if (getSocketFD() == INVALID_SOCK) {
             throw std::logic_error(buildErrorMessage("ListenSocket::", __func__, ": accept called on a bad socket object (this object was moved)"));
         }
 
-        struct sockaddr_storage serverStorage;
-        socklen_t addr_size = sizeof serverStorage;
-        int newSocket = ::accept(getSocketFD(), (struct sockaddr*)&serverStorage, &addr_size);
+        struct sockaddr_storage ss;
+        socklen_t addr_size = sizeof ss;
+        int newSocket = ::accept(getSocketFD(), (struct sockaddr*)&ss, &addr_size);
         if (newSocket == INVALID_SOCK) {
             throw std::runtime_error(buildErrorMessage("ListenSocket:", __func__, ": accept: ", strerror(errno)));
         }
-        return DataSocket(newSocket);
+
+        return TransSocket(newSocket);
     }
 
     /**********************************************************************
-    *                             DataSocket                             *
+    *                             TransSocket                             *
     **********************************************************************/
 
+    TransSocket::TransSocket(int fd) :
+        BaseSocket(fd)
+    { }
+
     void
-    DataSocket::sendMessage(const char* data, size_t size)
+    TransSocket::sendMessage(const char* data, size_t size)
     {
         std::size_t dataWritten = 0;
 
@@ -311,7 +346,7 @@ namespace siigix {
                     case EPIPE:
                     {
                         // Fatal error. Programming bug
-                        throw std::domain_error(buildErrorMessage("DataSocket::", __func__, ": write: critical error: ", strerror(errno)));
+                        throw std::domain_error(buildErrorMessage("TransSocket::", __func__, ": write: critical error: ", strerror(errno)));
                     }
                     case EDQUOT:
                     case EFBIG:
@@ -321,7 +356,7 @@ namespace siigix {
                     case ENOSPC:
                     {
                         // Resource acquisition failure or device error
-                        throw std::runtime_error(buildErrorMessage("DataSocket::", __func__, ": write: resource failure: ", strerror(errno)));
+                        throw std::runtime_error(buildErrorMessage("TransSocket::", __func__, ": write: resource failure: ", strerror(errno)));
                     }
                     case EINTR:
                             // TODO: Check for user interrupt flags.
@@ -335,7 +370,7 @@ namespace siigix {
                     }
                     default:
                     {
-                        throw std::runtime_error(buildErrorMessage("DataSocket::", __func__, ": write: returned -1: ", strerror(errno)));
+                        throw std::runtime_error(buildErrorMessage("TransSocket::", __func__, ": write: returned -1: ", strerror(errno)));
                     }
                 }
             }
@@ -345,7 +380,7 @@ namespace siigix {
     }
 
     void
-    DataSocket::sendMessageClose()
+    TransSocket::sendMessageClose()
     {
         if (::shutdown(getSocketFD(), SHUT_WR) != 0) {
             throw std::domain_error(buildErrorMessage("TCP::Protocol::", __func__, ": shutdown: critical error: ", strerror(errno)));

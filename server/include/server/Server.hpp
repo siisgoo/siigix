@@ -29,6 +29,7 @@ namespace siigix {
 
 namespace TCP {
 
+    /* template<class ProtoC> */
     struct Server {
         public:
             enum ServerStatus {
@@ -41,32 +42,25 @@ namespace TCP {
                 disconnected,
             };
 
-            struct Client {
+            struct Client  {
                 public:
                     friend struct Server;
 
-                    Client(DataSocket&& sock);
+                    Client(TransSocket&& sock);
                     virtual ~Client();
 
-                    const std::string getIP() const { return _ip; };
-                    const port_t getPort() const    { return _port; };
-                    ClientStatus getStatus() const  { return _status;}
+                    std::string  getIP() const     { return _socket.getIP(); }
+                    port_t       getPort() const   { return _socket.getPort(); }
+                    ClientStatus getStatus() const { return _status;}
                     int disconnect();
 
-                    //return true if send success
-                    bool sendMessage(const std::string& data);
-                    //return true if recive success, data len>0
-                    bool recvMessage(std::string& data);
+                    void recvMessage(std::string& data);
+                    void sendMessage(const std::string& data);
                 private:
-                    std::mutex _access_mutex;
-
-                    std::string _ip;
-                    port_t _port;
-
-                    TCP::Protocol _protocol;
-                    DataSocket _socket;
-
-                    ClientStatus _status = ClientStatus::connected;
+                    std::mutex    _access_mutex;
+                    TransSocket   _socket;
+                    TCP::Protocol _proto;
+                    ClientStatus  _status = ClientStatus::connected;
             };
 
             typedef std::function<void(Client&)>                connection_hndl_fn_t;
@@ -78,14 +72,13 @@ namespace TCP {
             typedef std::list<std::unique_ptr<Client>>::iterator ClientIterator;
 
         public:
-            Server(port_t port = 8000, std::string ip = "0.0.0.0",
+            Server(port_t port = 8000, int max_conn = 10,
                     int threads = std::thread::hardware_concurrency());
             Server(data_hndl_fn_t d_hndl_fn,
                     connection_hndl_fn_t conn_hndl_fn,
                     connection_hndl_fn_t disconn_hdnl_fn,
-                    port_t port = 8000, std::string ip = "0.0.0.0",
+                    port_t port = 8000, int max_conn = 10,
                     int threads = std::thread::hardware_concurrency());
-            /* Server(struct in_addr6 ip6); */
             virtual ~Server();
 
             /* Setup & Run serve loop
@@ -107,7 +100,7 @@ namespace TCP {
 
             /* Add new client on address ip and port port, and after successfuly connection run connect_hndl funciton
              * return bool of success */
-            bool connectClient(std::string ip, const port_t port, connection_hndl_fn_t connect_hndl);
+            bool connectClient(std::string ip, port_t port, connection_hndl_fn_t connect_hndl);
 
             /* Send data from INData load to all connected clients */
             void sendToAll(const std::string& load);
@@ -126,9 +119,6 @@ namespace TCP {
         private:
             void waitDataLoop();
             void handleAcceptLoop();
-
-            std::string _ip;
-            port_t _port;
 
             ListenSocket _socket;
 

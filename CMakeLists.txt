@@ -8,7 +8,7 @@ include(CMakeSources.cmake)
 
 project(siigix LANGUAGES CXX VERSION ${SIIGIX_VERSION} DESCRIPTION ${SIIGIX_DESCRIPTION})
 
-include(CTest)
+# set(BUILD_EXAMPLES TRUE CACHE BOOL)
 
 ##########################
 #  setting c++ standart  #
@@ -35,6 +35,7 @@ ENDIF()
 
 add_subdirectory(general)
 add_subdirectory(server)
+add_subdirectory(client)
 
 ######################
 #  creating package  #
@@ -83,7 +84,11 @@ install( FILES   ${GENERAL_HEADERS_PRIVATE}    DESTINATION ${INSTALL_PREFIX}/inc
 #  testing  #
 #############
 
-if (BUILD_TESTING)
-    enable_testing()
-    add_subdirectory(test)
-endif (BUILD_TESTING)
+# if (BUILD_EXAMPLES)
+    add_subdirectory(examples)
+# endif (BUILD_EXAMPLES)
+
+# if (BUILD_TESTING)
+#     enable_testing()
+#     add_subdirectory(test)
+# endif (BUILD_TESTING)
