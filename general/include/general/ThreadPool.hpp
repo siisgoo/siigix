@@ -21,7 +21,20 @@ namespace siigix
             void start(size_t threads);
             void stop();
 
-            void addJob(const std::function<void()>);
+            template<typename F>
+            void addJob(F job) {
+                if(_terminated) { return; }
+
+                {
+                    std::unique_lock lock(_queue_mutex);
+                    _worker_queue.push(std::function<void()>(job));
+                }
+
+               _condition.notify_one();
+            }
+
+            template<typename F, typename... Arg>
+            void addJob(const F& job, const Arg&... args) {addJob([job, args...]{job(args...);});}
 
             void join();
             void dropJobs();

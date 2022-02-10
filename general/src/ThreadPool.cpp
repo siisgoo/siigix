@@ -27,20 +27,6 @@ ThreadPool::start(size_t threads) {
 void
 ThreadPool::stop() { _terminated = true; join(); }
 
-/* template<typename F> */
-void
-ThreadPool::addJob(std::function<void()> job) {
-    if (_terminated) {
-        return;
-    }
-
-    {
-        std::unique_lock lock(_queue_mutex);
-        _worker_queue.push(job);
-    }
-    _condition.notify_one();
-}
-
 void ThreadPool::join() { for (auto& t: _threads) t.join(); }
 
 void

@@ -33,20 +33,20 @@ namespace siigix {
         Protocol::sendMessage(const std::string& data)
         {
             _socket.sendMessage(data.c_str(), data.size());
-            /* _socket.sendMessageClose(); */
+            _socket.sendMessageClose();
         }
 
         void
         Protocol::recvMessage(std::string& data)
         {
-            size_t dataRead = 0;
+            std::size_t dataRead = 0;
             data.clear();
 
             while (true)
             {
                 StringSizer stringSizer(data, dataRead);
-                size_t dataMax = data.capacity() - 1;
-                char   *buff   = &data[0];
+                std::size_t dataMax = data.capacity() - 1;
+                char   *buff        = &data[0];
 
                 size_t got = _socket.recvMessage(buff + dataRead, dataMax - dataRead, [](size_t) { return false; });
                 dataRead  += got;

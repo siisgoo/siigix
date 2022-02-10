@@ -43,8 +43,8 @@ set(GENERAL_DESCRIPTION "General siigix utils")
 ####################
 
 set(SERVER_SOURCES_LIST
-    ${SERVER_DIR}/src/Server.cpp
-    ${SERVER_DIR}/src/ServerClient.cpp
+    ${SERVER_DIR}/include/${SERVER_PROJECT_NAME}/Server.inl
+    ${SERVER_DIR}/include/${SERVER_PROJECT_NAME}/ServerClient.inl
 )
 
 set(SERVER_HEADERS_PUBLIC

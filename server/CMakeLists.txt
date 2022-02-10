@@ -18,6 +18,12 @@ find_package(Threads REQUIRED)
 add_library(${PROJECT_NAME} SHARED ${SERVER_SOURCES_LIST})
 add_library(siigix::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
+################################
+#  setting project properties  #
+################################
+
+set_target_properties(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
+
 #######################
 #  linking libraries  #
 #######################

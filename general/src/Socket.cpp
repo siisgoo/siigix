@@ -266,13 +266,12 @@ namespace siigix {
     *                            ListenSocket                            *
     **********************************************************************/
 
-    ListenSocket::ListenSocket(port_t port, sock_opts_t opts, int max_conn) :
-        BaseSocket(::socket(AF_INET, SOCK_STREAM, 0))
+    ListenSocket::ListenSocket(std::string host, port_t port, struct addrinfo hints, sock_opts_t opts, int max_conn) :
+        BaseSocket(::socket(hints.ai_family, hints.ai_socktype, hints.ai_protocol))
     {
-        struct sockaddr_in l_addr {};
-        l_addr.sin_family       = AF_INET;
-        l_addr.sin_port         = htons(port);
-        l_addr.sin_addr.s_addr  = htonl(INADDR_ANY);
+        char szPort[6];
+        struct addrinfo *addr;
+        sprintf(szPort, "%hu", port);
 
         //set options
         for (int i = 0; i < opts.count; i++) {
@@ -287,7 +286,12 @@ namespace siigix {
             }
         }
 
-        if (::bind(getSocketFD(), (struct sockaddr*)&l_addr, sizeof(l_addr)) != 0) {
+        if (getaddrinfo(host.c_str(), szPort, &hints, &addr) != 0) {
+            Close();
+            throw std::runtime_error(buildErrorMessage("ConnectScoket::", __func__, ": getaddrinfo: ", strerror(errno)));
+        }
+
+        if (::bind(getSocketFD(), addr->ai_addr, addr->ai_addrlen) != 0) {
             Close();
             throw std::runtime_error(buildErrorMessage("ListenSocket::", __func__, ": bind: ", strerror(errno)));
         }
@@ -297,13 +301,15 @@ namespace siigix {
             Close();
             throw std::runtime_error(buildErrorMessage("ListenSocket::", __func__, ": listen: ", strerror(errno)));
         }
+
+        freeaddrinfo(addr);
     }
 
-    ListenSocket::ListenSocket(port_t port, int max_conn) :
-        ListenSocket(port, {}, max_conn) {  }
+    ListenSocket::ListenSocket(std::string host, port_t port, struct addrinfo hints, int max_conn) :
+        ListenSocket(host, port, hints, {}, max_conn) {  }
 
     TransSocket
-    ListenSocket::Accept()
+    ListenSocket::Accept(int flags)
     {
         if (getSocketFD() == INVALID_SOCK) {
             throw std::logic_error(buildErrorMessage("ListenSocket::", __func__, ": accept called on a bad socket object (this object was moved)"));
@@ -311,7 +317,7 @@ namespace siigix {
 
         struct sockaddr_storage ss;
         socklen_t addr_size = sizeof ss;
-        int newSocket = ::accept(getSocketFD(), (struct sockaddr*)&ss, &addr_size);
+        int newSocket = ::accept4(getSocketFD(), (struct sockaddr*)&ss, &addr_size, flags);
         if (newSocket == INVALID_SOCK) {
             throw std::runtime_error(buildErrorMessage("ListenSocket:", __func__, ": accept: ", strerror(errno)));
         }
@@ -334,7 +340,7 @@ namespace siigix {
 
         while(dataWritten < size)
         {
-            std::size_t put = write(getSocketFD(), data + dataWritten, size - dataWritten);
+            std::size_t put = send(getSocketFD(), data + dataWritten, size - dataWritten, 0);
             if (put == static_cast<std::size_t>(-1))
             {
                 switch(errno)

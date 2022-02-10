@@ -14,5 +14,6 @@ target_link_libraries(ex-server PUBLIC
 
 target_link_libraries(ex-client PUBLIC
     siigix::general
-    siigix::client
+    # siigix::client
+    siigix::server
 )

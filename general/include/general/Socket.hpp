@@ -181,10 +181,10 @@ namespace siigix {
     /* listen for connection */
     class ListenSocket : public BaseSocket {
         public:
-            ListenSocket(port_t port, sock_opts_t opts, int max_conn = MAX_CONN);
-            ListenSocket(port_t port, int max_conn = MAX_CONN);
+            ListenSocket(std::string host, port_t port, struct addrinfo hints, sock_opts_t opts, int max_conn = MAX_CONN);
+            ListenSocket(std::string host, port_t port, struct addrinfo hints, int max_conn = MAX_CONN);
 
-            TransSocket Accept();
+            TransSocket Accept(int flags = 0);
     };
 
     #include "Socket.inl"
