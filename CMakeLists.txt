@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.21)
 
 include(CMakeSources.cmake)
 
-project(siigix LANGUAGES CXX VERSION ${SIIGIX_VERSION} DESCRIPTION ${SIIGIX_DESCRIPTION})
+project(${SIIGIX_LIB_NAME} LANGUAGES CXX VERSION ${SIIGIX_VERSION} DESCRIPTION ${SIIGIX_DESCRIPTION})
 
 # set(BUILD_EXAMPLES TRUE CACHE BOOL)
 
@@ -33,9 +33,8 @@ ENDIF()
 #  sub directories  #
 #####################
 
-add_subdirectory(general)
-add_subdirectory(server)
-add_subdirectory(client)
+add_subdirectory(${GENERAL_MODULE_NAME})
+add_subdirectory(${NET_MODULE_NAME})
 
 ######################
 #  creating package  #
@@ -73,19 +72,19 @@ install(
 #  installing export files  #
 #############################
 
-install( TARGETS ${SERVER_PROJECT_NAME}        DESTINATION ${INSTALL_PREFIX}/lib                 )
-install( TARGETS ${GENERAL_PROJECT_NAME}       DESTINATION ${INSTALL_PREFIX}/lib                 )
-install( FILES   ${TCP_SERVER_HEADERS_PUBLIC}  DESTINATION ${INSTALL_PREFIX}/include/            )
-install( FILES   ${TCP_SERVER_HEADERS_PRIVATE} DESTINATION ${INSTALL_PREFIX}/include/tcp-server/ )
-install( FILES   ${GENERAL_HEADERS_PUBLIC}     DESTINATION ${INSTALL_PREFIX}/include/            )
-install( FILES   ${GENERAL_HEADERS_PRIVATE}    DESTINATION ${INSTALL_PREFIX}/include/general     )
+install( TARGETS ${NET_MODULE_NAME}         DESTINATION ${INSTALL_PREFIX}/lib                                               )
+install( TARGETS ${GENERAL_MODULE_NAME}     DESTINATION ${INSTALL_PREFIX}/lib                                               )
+install( FILES   ${NET_HEADERS_PUBLIC}      DESTINATION ${INSTALL_PREFIX}/include/${SIIGIX_LIB_NAME}/${NET_MODULE_NAME}     )
+install( FILES   ${NET_HEADERS_PRIVATE}     DESTINATION ${INSTALL_PREFIX}/include/${SIIGIX_LIB_NAME}/${NET_MODULE_NAME}     )
+install( FILES   ${GENERAL_HEADERS_PUBLIC}  DESTINATION ${INSTALL_PREFIX}/include/${SIIGIX_LIB_NAME}/${GENERAL_MODULE_NAME} )
+install( FILES   ${GENERAL_HEADERS_PRIVATE} DESTINATION ${INSTALL_PREFIX}/include/${SIIGIX_LIB_NAME}/${GENERAL_MODULE_NAME} )
 
 #############
 #  testing  #
 #############
 
 # if (BUILD_EXAMPLES)
-    add_subdirectory(examples)
+    # add_subdirectory(examples)
 # endif (BUILD_EXAMPLES)
 
 # if (BUILD_TESTING)
