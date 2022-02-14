@@ -1,10 +1,15 @@
 #include <ConfigReader.hpp>
 #include <ConfigSignatures.hpp>
 
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 
 namespace sgx {
+
+    /**********************************************************************
+    *                            ConfigReader                            *
+    **********************************************************************/
 
     ConfigReader::ConfigReader()
         : _signatureManager(new signatureManager)
@@ -16,34 +21,21 @@ namespace sgx {
         delete _signatureManager;
     }
 
-    /**********************************************************************
-    *                          sgxConfigReader                           *
-    **********************************************************************/
+    /*--------------------*/
 
-    std::unique_ptr<ConfigRoot>
+    sgxConfigReader::sgxConfigReader()
+        : ConfigReader() {  }
+
+    IConfigNode *
     sgxConfigReader::read(const std::string& path)
     {
-        std::unique_ptr<ConfigRoot> config(new ConfigRoot());
         std::ifstream file(path, std::ios::out);
-        std::string line;
 
-        /* find block start with {
-         * skip spaces before first AlhpaNum character
-         */
-        while (std::getline(file, line))
-        {
-        for (int pos = 0; pos > 0 && pos < line.length(); pos++)
-        {
-            pos = skipSpaces(line);
+        sgxConfigParser parser;
 
-            /* check states */
-            if (rState.isSetted(ReadingState::field_readed)) {
-                pos = skipBeforeSignature(line, signatureManager::getSignature("sgx_assign"));
-            }
-        }
-        }
+        IConfigNode * root = parser.parseFile(file);
 
-        return config;
+        return root;
     }
 
     bool
@@ -52,8 +44,62 @@ namespace sgx {
         return false;
     }
 
+    /*--------------------*/
+
+    /**********************************************************************
+    *                            ConfigParser                            *
+    **********************************************************************/
+
+    #define SGX_PARSER_ERRSTR_GEN(num, desk) {"SGXP_" #num, desk},
+        static struct {
+            const char *name;
+            const char *description;
+        } sgx_parser_strerror_tab[] = {
+            SGX_PARSER_ERROR_MAP(SGX_PARSER_ERRSTR_GEN)
+        };
+    #undef SGX_PARSER_ERRSTR_GEN
+
+    sgxConfigParser::sgxConfigParser() {  }
+    sgxConfigParser::~sgxConfigParser() {  }
+
+    IConfigNode *
+    sgxConfigParser::parseFile(std::ifstream& file)
+    {
+        _file_path = "File path defenition future not implemented yet!";
+        std::unique_ptr<IConfigNode> root = nullptr;
+
+        return root.release(); //its ok??
+    }
+
+    std::string
+    sgxConfigParser::reverseParse(IConfigNode * node)
+    {
+        return "";
+    }
+
     int
-    sgxConfigReader::skipSpaces(const std::string& line)
+    sgxConfigParser::findBlocks(std::ifstream& file)
+    {
+        int blocks_count = 0;
+        int l_real_col, l_real_row, l_col, l_row;
+        std::string line;
+
+        bool sgx_cfg_block_start_found = false;
+
+        while (std::getline(file, line)) {
+            for (int l_col = 0, l_row = 0; l_col < line.length(); l_col++, l_real_col++) {
+
+            }
+
+            l_row++;
+            l_real_row++;
+        }
+
+        return blocks_count;
+    }
+
+    void
+    sgxConfigReader::skipSpaces()
     {
         int i = 0;
         for (; i < line.length(); i++) {
@@ -65,7 +111,6 @@ namespace sgx {
         return -1;
     }
 
-    //TODO now only one char signatures can be handled
     int
     sgxConfigReader::skipBeforeSignature(const std::string& line, const ISignature * sig)
     {
@@ -81,12 +126,17 @@ namespace sgx {
         return -1;
     }
 
+    //mb logger must be print?
     void
-    sgxConfigReader::printErrorLine(const std::string& file, const std::string& err, int err_line)
+    sgxConfigParser::print_error(const BlockInfo& err_block)
     {
-        std::cerr << "Error in line " << err_line << std::endl <<
-            " >> " << err << std::endl <<
-            "Terminating reading precess";
+        int err_line = err_block.parsing_pos.row;
+        std::cerr << "Prsing error in file: " << _file_path << std::endl <<
+            "  Error in line: " << err_line << std::endl <<
+            "  >> " << err_block[err_line] << std::endl <<
+            "  Reason: " << sgx_parser_strerror_tab[_errno].name << ": " <<
+            sgx_parser_strerror_tab[_errno].description << std::endl <<
+            "Terminating reading precess" << std::endl;
     }
 
 } /* sgx  */ 

@@ -70,14 +70,14 @@ namespace sgx {
             std::map<std::string, ISignature*> _signatures = {
                 { "sgx_assign",           new signVec({ ":", "=", ":=" }) },
 
-                { "sgx_block_start",      new signChar('{') },
-                { "sgx_block_end",        new signChar('}') },
-                { "sgx_block_name_start", new signChar('[') },
-                { "sgx_block_name_end",   new signChar(']') },
-                { "sgx_array_start",      new signChar('[') },
-                { "sgx_array_end",        new signChar(']') },
-                { "sgx_string",           new signChar('"') },
-                { "sgx_escape_new_line",  new signChar('\\') },
+                { "sgx_cfg_block_start",      new signChar('{') },
+                { "sgx_cfg_block_end",        new signChar('}') },
+                { "sgx_cfg_block_name_start", new signChar('[') },
+                { "sgx_cfg_block_name_end",   new signChar(']') },
+                { "sgx_cfg_array_start",      new signChar('[') },
+                { "sgx_cfg_array_end",        new signChar(']') },
+                { "sgx_cfg_string",           new signChar('"') },
+                { "sgx_cfg_escape_new_line",  new signChar('\\') },
             };
         public:
             signatureManager() {

@@ -92,6 +92,7 @@ set(GENERAL_SOURCES_LIST
 
 set(GENERAL_HEADERS_PUBLIC
     ${GENERAL_INCLUDE_DIR}/ByteOrder.hpp
+    ${GENERAL_INCLUDE_DIR}/Command.hpp
     ${GENERAL_INCLUDE_DIR}/Encoding.hpp
     ${GENERAL_INCLUDE_DIR}/TextConverter.hpp
     ${GENERAL_INCLUDE_DIR}/BitFlag.hpp

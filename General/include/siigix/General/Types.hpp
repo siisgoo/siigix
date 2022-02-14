@@ -25,6 +25,27 @@ namespace sgx {
     #else
 
     #endif
+
+    struct linePosition {
+        int row, col;
+
+        linePosition& operator = (const linePosition& other) {
+            row = other.row;
+            col = other.col;
+            return *this;
+        }
+
+        bool operator == (const linePosition& other) const { return row == other.row && col == other.col; }
+        bool operator != (const linePosition& other) const { return !(*this == other); }
+        bool operator >  (const linePosition& other) const { return row > other.row && col > other.col; }
+        bool operator <  (const linePosition& other) const { return row < other.row && col < other.col; }
+        bool operator >= (const linePosition& other) const { return (*this == other) || (*this > other); }
+        bool operator <= (const linePosition& other) const { return (*this == other) || (*this < other); }
+
+        linePosition() : linePosition(0, 0) {  }
+        linePosition(int r, int c) : row(r), col(c) {  }
+    };
+
 } /* sgx  */ 
 
 #endif /* end of include guard: TYPES_HPP_I4HURKXF */
