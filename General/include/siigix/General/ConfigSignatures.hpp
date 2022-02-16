@@ -15,7 +15,7 @@ namespace sgx {
         public:
             ISignature();
             virtual ~ISignature();
-            virtual bool isSign(const std::string&) const = 0;
+            virtual bool isSign(const std::string) const = 0;
             virtual unsigned maxLen() const = 0;
     };
 
@@ -24,7 +24,7 @@ namespace sgx {
             std::map<std::string, unsigned> _map;
             int _max_len;
         public:
-            virtual bool isSign(const std::string& s) const {
+            virtual bool isSign(const std::string s) const {
                 for (auto& sign: _map) {
                     std::string tmp = s;
                     tmp.resize(sign.second);
@@ -54,7 +54,7 @@ namespace sgx {
         private:
             const char _ch;
         public:
-            virtual bool isSign(const std::string& ch) const {
+            virtual bool isSign(const std::string ch) const {
                 return _ch == ch[0];
             }
 

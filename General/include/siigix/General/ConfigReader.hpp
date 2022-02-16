@@ -72,44 +72,102 @@ namespace sgx {
         };
     };
 
-
-    struct blockBorders {
-        linePosition start;
-        linePosition end;
-
-        bool operator == (const blockBorders& other) { return start == other.start && end == other.end; }
-        bool operator != (const blockBorders& other) { return !(*this == other); }
-    };
-
-    class BlockInfo;
-    using BlockLines = std::vector<std::string>;
-    using SubBlockVec = std::vector<std::unique_ptr<BlockInfo>>;
-    using SubBlockVecIter = SubBlockVec::iterator;
     class BlockInfo {
-        private:
-            BlockLines   _block;                 /* contain formatted(no ws, no tab, no empty lines) block text */
-            linePosition _parsing_pos { 0, 0 };  /* position when parsing block */
-            linePosition _prev_parsing_pos;      /* position when parsing block */
-            blockBorders _real_block_borders;    /* info about block in file(need for error printing) */
-            SubBlockVec  _sub_blocks;            /* childs */
-            BlockInfo * _parent_block = nullptr; /* parent */
-
-            bool isInBlock(const linePosition& pos) const {
-                return pos.row >= 0 && pos.row <= _block.size() &&
-                    pos.col >= 0 && pos.col <= _block.at(pos.row).length();
-            }
         public:
+            using Lines = std::vector<std::string>; //try to use charVectorBuffer
+            using SubBlockVec = std::vector<std::unique_ptr<BlockInfo>>;
+            using SubBlockIter = SubBlockVec::iterator;
+
+            struct Borders;
+            class ParseStepInfo;
+            class RealBlockRowsNumbers; /* rename, worst name ever */
+
+            struct Borders {
+                linePosition start;
+                linePosition end;
+
+                bool operator == (const Borders& other) { return start == other.start && end == other.end; }
+                bool operator != (const Borders& other) { return !(*this == other); }
+
+                Borders(const linePosition& start, const linePosition& end) : start(start), end(end) {  }
+                Borders() {  }
+            };
+
+            class ParseStepInfo {
+                friend class BlockInfo;
+                linePosition _position;
+                bool _jumped_to_new_line = false;
+                bool _all_readed = false;
+                char _ch;
+                public:
+                    operator bool() const           { return _all_readed; }
+                    const linePosition& getpos() const { return _position; }
+                    char ch() const                 { return _ch; }
+                    bool jumped_to_new_line() const { return _jumped_to_new_line; }
+                    bool no_more_counten() const    { return _all_readed; }
+                    ParseStepInfo snupshot() const  { return ParseStepInfo(*this); }
+
+                    ParseStepInfo() {}
+                    ParseStepInfo(const ParseStepInfo& other)
+                        : _position(other._position),
+                        _jumped_to_new_line(other._jumped_to_new_line),
+                        _all_readed(other._all_readed),
+                        _ch(other._ch) {  }
+            };
+
+            class RealBlockRowsNumbers {
+                friend class BlockInfo;
+                std::vector<start_end<unsigned>> _rows;
+                public:
+                    const std::vector<start_end<unsigned>>& getRowsNumbers() const { return _rows; }
+                    const int getRowNumber(const int search) {
+                        if (search < 0) { return -1; }
+
+                        for (auto& r: _rows) {
+                            if ((r.diff()+1) <= search) { /* is serching row number in this cell */
+                                return r.start+search; //its ok??
+                            }
+                        }
+                        return -1;
+                    }
+                    RealBlockRowsNumbers& operator = (const RealBlockRowsNumbers& other) {
+                        _rows = other._rows;
+                        return *this;
+                    }
+                    RealBlockRowsNumbers() {  }
+                    RealBlockRowsNumbers(std::vector<start_end<unsigned>> rows) : _rows(rows) {  }
+            };
+
+        private:
+            Lines         _block;                    /* Contain formatted(no ws, no tab, no empty lines) block text */
+            ParseStepInfo _parsing_info;             /* Info when parsing block */
+            ParseStepInfo _prev_parsing_info;        /* save */
+            SubBlockVec   _sub_blocks;               /* Childs */
+            BlockInfo     * _parent_block = nullptr; /* Parent */
+            /* _real_block_lines_used:
+             *   Contain line numbers of real file/buffer passed to parser.
+             *   Each cell defines range where:
+             *    >> start - line number of the beginig this block data members
+             *    >> end - line number of the end this block data members */
+            RealBlockRowsNumbers _real_block_rows;
+        public:
+            BlockInfo * parent() const { return _parent_block; };
+            void set_parent(BlockInfo * parent) { _parent_block = parent; } //DAGEROUS!!!
+            void set_real_block_rows(const RealBlockRowsNumbers& rbrn) { _real_block_rows = rbrn; }
+
             void add_sub_block(const std::unique_ptr<BlockInfo> new_sub_block) {
+                new_sub_block->_parent_block = this;
                 _sub_blocks.push_back(new_sub_block);
             }
 
-            void add_sub_block(const blockBorders& real_borders, const BlockLines block_text)
+            void add_sub_block(const Lines block_text, const RealBlockRowsNumbers& lines)
             {
-                std::unique_ptr<BlockInfo> new_block(new BlockInfo(real_borders, block_text, this));
-                _sub_blocks.push_back(new_block);
+                _sub_blocks.push_back(
+                        std::make_unique<BlockInfo>(this, block_text, lines)
+                                     );
             }
 
-            void remove_sub_block(const SubBlockVecIter& iter) {
+            void remove_sub_block(const SubBlockIter& iter) {
                 _sub_blocks.erase(iter);
             }
 
@@ -117,47 +175,41 @@ namespace sgx {
                 _sub_blocks.erase(_sub_blocks.begin()+i); //is ok??
             }
 
-            //iterate with BlockLines
-            std::string& operator[] (unsigned i) { return _block.at(i); }
+            //iterate with Lines
+            std::string& operator[] (unsigned i)             { return _block.at(i); }
             const std::string& operator[] (unsigned i) const { return _block.at(i); }
             void add_line(const std::string line) { _block.push_back(line); }
-            void remove_line(const unsigned i) { _block.erase(_block.begin() + i); } /*its ok??*/
+            void remove_line(const unsigned i)    { _block.erase(_block.begin() + i); } /*its ok??*/
 
-            /* borders getters */
-            const blockBorders& real_block_borders() const { return  _real_block_borders; }
+            const RealBlockRowsNumbers& real_block_rows() const { return _real_block_rows; }
             const int lines() const { return  _block.size(); }
-            const linePosition& parsing_position() const { return _parsing_pos; }
+            const ParseStepInfo& parsing_info() const { return _parsing_info; }
 
-            /*
-             * Increment parsing pos col, if its end on cur line in _block, increment row;
-             * Sets is_on_new_line true if start reading next line
-             * char& res - character on parsing position;
-             *
-             * return true if on all lines read
-             */
-            bool parser_step(char& res, bool& is_on_new_line) {
-                is_on_new_line = false;
-                _prev_parsing_pos = _parsing_pos;
-                int &l_col = _parsing_pos.col;
-                int &l_row = _parsing_pos.row;
+            /* Increment parsing pos col, if its end on cur line in _block, increment row; */
+            const ParseStepInfo& parser_step() {
+                _parsing_info._jumped_to_new_line = false;
+                _prev_parsing_info = _parsing_info.snupshot();
+
+                int &l_col = _parsing_info._position.col;
+                int &l_row = _parsing_info._position.row;
 
                 /* not the whole line has been read yet */
                 if (l_col < _block.at(l_row).length()) {
                     l_col++;
-                    res = _block.at(l_row).at(l_col);
+                    _parsing_info._ch = _block.at(l_row).at(l_col);
                 }
                 /* not last line in block */
                 else if (l_row < _block.size()) {
                     /* reset to next line */
-                    is_on_new_line = true;
+                    _parsing_info._jumped_to_new_line = true;
                     l_row++;
                     l_col = 0;
-                    res = _block.at(l_row).at(l_col);
+                    _parsing_info._ch = _block.at(l_row).at(l_col);
                 } else {
-                    return false;
+                    _parsing_info._all_readed = true;
                 }
 
-                return true;
+                return _parsing_info;
             }
 
             /* bool parse_step_back(char& res) { */
@@ -167,21 +219,27 @@ namespace sgx {
             /* } */
 
             /* TODO */
-            const linePosition& blok_pos_to_real(const linePosition& pos) const {
-                if (isInBlock(pos)) {
+            const linePosition block_pos_to_real(const linePosition& pos) const {
+                /* if (isInBlock(pos)) { */
                     /* go to all childrens ... calculate ... */
-                    return pos;
-                }
+                    /* return pos; */
+                /* } */
+                return { -1, -1 };
                 throw std::runtime_error(eprintf("BlockInfo::", __func__, " Cannto convert position col: ", pos.col, " , row: ", pos.row));
             }
 
-            BlockInfo(const blockBorders& rb, const BlockLines& block_text, BlockInfo * parent = nullptr)
-                : _block(block_text),
-                _real_block_borders(rb),
-                _parsing_pos(0, 0)
-            {
+            BlockInfo() //DANGEROUS
+                : _block(),
+                _real_block_rows(),
+                _parsing_info() {  }
 
-            }
+            BlockInfo(const BlockInfo * parent, const Lines& block_text, const RealBlockRowsNumbers& row_numbers)
+                : _block(block_text),
+                _real_block_rows(row_numbers),
+                _parsing_info()
+            { }
+            ~BlockInfo()
+            {  }
     };
 
     /**********************************************************************
@@ -190,7 +248,7 @@ namespace sgx {
 
     class ConfigParser {
         private:
-            virtual IConfigNode* parseFile(std::ifstream& file) = 0;
+            virtual IConfigNode* parseFile(const std::string& path) = 0;
             virtual std::string  reverseParse(IConfigNode * node) = 0;
     };
 
@@ -198,12 +256,16 @@ namespace sgx {
         public:
             sgxConfigParser();
 
-            virtual IConfigNode* parseFile(std::ifstream& file) override; //TODO change ifstream to some FileManager class ...
+            virtual IConfigNode* parseFile(const std::string& file_path) override;
             virtual std::string  reverseParse(IConfigNode * node) override;
 
             virtual ~sgxConfigParser();
         private:
-            int findBlocks(std::ifstream& file); /* return count of founded blocks */
+            void bufferizeFile(const std::string& file_path);
+            int prepare_to_sign_cmp(const ISignature * sign, const linePosition pos, std::string& res); /* get string from _buffer */
+
+            std::unique_ptr<BlockInfo> createBlock(int i, linePosition save, BlockInfo * parent);
+            int  createBlocks(); /* return count of founded blocks */
             std::unique_ptr<IConfigNode> parseBlocks();
             std::unique_ptr<IConfigNode> parseBlock(BlockInfo& block);
 
@@ -221,13 +283,14 @@ namespace sgx {
             bool parseString(std::string& res, BlockInfo& block);
             bool parseArray(ArrayUnit& res, BlockInfo& block);
 
-            std::mutex       _errno_mutex;
+            /* std::mutex       _errno_mutex; */
             sgx_parser_errno _errno;
 
             /* thread_pool _thread_pool; */
             std::unique_ptr<IConfigNode> _root_node;
             std::unique_ptr<BlockInfo>   _root_block;
-            std::string  _file_path; //setting by parseFile(file) used in print_error()
+            std::string _parsing_file;
+            charVectorBuffer _buffer;
     };
 
     /**********************************************************************

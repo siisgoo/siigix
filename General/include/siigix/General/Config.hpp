@@ -163,7 +163,7 @@ namespace sgx {
         protected:
             std::string _name;
             ConfigUnits _units;
-            ConfigNode* _parent;
+            IConfigNode* _parent;
             ConfigSubNodesVec _sub_nodes;
         public:
 
@@ -307,7 +307,7 @@ namespace sgx {
                 return false;
             }
 
-            ConfigNode(std::string name, ConfigNode* parent = nullptr)
+            ConfigNode(std::string name, IConfigNode* parent = nullptr)
                 : _name(name), _parent(parent)
             { }
 
