@@ -1,6 +1,7 @@
-#include <ConfigSignatures.hpp>
+#include <MarkupSignatures.hpp>
+#include <stdexcept>
 
-namespace sgx {
+namespace sgx::Markup {
 
     signatureManager * signatureManager::_smInstance = nullptr;
 
@@ -22,9 +23,7 @@ namespace sgx {
                 return storedSign.second;
             }
         }
-
-        //LOG HERE PLZ
-        return nullptr;
+        throw std::runtime_error(eprintf("signatureManager::", __func__, " No suck signature: ", signName));
     }
 
     void

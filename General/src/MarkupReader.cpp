@@ -1,5 +1,5 @@
-#include <ConfigReader.hpp>
-#include <ConfigSignatures.hpp>
+#include <MarkupReader.hpp>
+#include <MarkupSignatures.hpp>
 
 #include <algorithm>
 #include <iostream>
@@ -7,39 +7,39 @@
 #include <memory>
 #include <system_error>
 
-namespace sgx {
+namespace sgx::Markup {
 
     /**********************************************************************
-    *                            ConfigReader                            *
+    *                            MarkupReader                            *
     **********************************************************************/
 
-    ConfigReader::ConfigReader()
+    MarkupReader::MarkupReader()
         : _signatureManager(new signatureManager)
     {
     }
 
-    ConfigReader::~ConfigReader()
+    MarkupReader::~MarkupReader()
     {
         delete _signatureManager;
     }
 
     /*--------------------*/
 
-    sgxConfigReader::sgxConfigReader()
-        : ConfigReader() {  }
+    sgxMarkupReader::sgxMarkupReader()
+        : MarkupReader() {  }
 
-    sgxConfigReader::~sgxConfigReader()
+    sgxMarkupReader::~sgxMarkupReader()
     {  }
 
-    [[nodiscard]] std::unique_ptr<ConfigNode>
-    sgxConfigReader::read(const std::string& path)
+    [[nodiscard]] std::unique_ptr<MarkupNode>
+    sgxMarkupReader::read(const std::string& path)
     {
-        sgxConfigParser parser;
+        sgxMarkupParser parser;
         return std::move(parser.parseFile(path));;
     }
 
     bool
-    sgxConfigReader::write(const ConfigNode& conf, const std::string& path)
+    sgxMarkupReader::write(const MarkupNode& conf, const std::string& path)
     {
         return false;
     }
@@ -47,7 +47,7 @@ namespace sgx {
     /*--------------------*/
 
     /**********************************************************************
-    *                            ConfigParser                            *
+    *                            MarkupParser                            *
     **********************************************************************/
 
     #define SGX_PARSER_ERRSTR_GEN(num, desk) {"SGXP_" #num, desk},
@@ -59,16 +59,16 @@ namespace sgx {
         };
     #undef SGX_PARSER_ERRSTR_GEN
 
-    sgxConfigParser::sgxConfigParser() {  }
-    sgxConfigParser::~sgxConfigParser() {  }
+    sgxMarkupParser::sgxMarkupParser() {  }
+    sgxMarkupParser::~sgxMarkupParser() {  }
 
-    std::unique_ptr<ConfigNode>
-    sgxConfigParser::parseFile(const std::string& file_path)
+    std::unique_ptr<MarkupNode>
+    sgxMarkupParser::parseFile(const std::string& file_path)
     {
         _parsing_file = file_path;
         std::ifstream file(_parsing_file);
         for (std::string buff; std::getline(file, buff); ) {
-            _block.add_line(buff);
+            _buffer.add_line(buff);
         }
 
         file.close();
@@ -77,28 +77,28 @@ namespace sgx {
     }
 
     std::string
-    sgxConfigParser::reverseParse(ConfigNode * node)
+    sgxMarkupParser::reverseParse(MarkupNode * node)
     {
         return "";
     }
 
-    std::unique_ptr<ConfigNode>
-    sgxConfigParser::parse()
+    std::unique_ptr<MarkupNode>
+    sgxMarkupParser::parse()
     {
-        if (_block.linesCount() <= 0) {
+        if (_buffer.linesCount() <= 0) {
             return 0;
         }
 
-        std::unique_ptr<ConfigNode> root = std::make_unique<ConfigNode>("root", nullptr);
+        std::unique_ptr<MarkupNode> root = std::make_unique<MarkupNode>("root", nullptr);
         int cur_depth = -1;
         int even = 0;
 
-        while (_block.parser_step()) {
+        while (_buffer.parser_step()) {
             /* On block start char */
-            if (seekSignatureStrict("sgx_cfg_block_start"))
+            if (seekSignatureStrict("sgx_mrk_block_start"))
             {
                 if (cur_depth >= 0) { //root
-                    ConfigNode * node = root.get();
+                    MarkupNode * node = root.get();
                     //find target node
                     for (int i = 0; i < cur_depth; i++) {
                         node = node->getSubNodes().at(node->subNodesCount()-1).get();
@@ -109,7 +109,7 @@ namespace sgx {
                 cur_depth++;
             /* On block end char */
             }
-            else if (isOnSignature("sgx_cfg_block_end"))
+            else if (isOnSignature("sgx_mrk_block_end"))
             {
                 if (cur_depth < 0) {
                     _errno = SGXP_END_SIGN_BEFORE_START;
@@ -126,14 +126,14 @@ namespace sgx {
                 break;
             /* On variable name char */
             }
-            else if (isOnSignature("sgx_cfg_var_name"))
+            else if (isOnSignature("sgx_mrk_var_name"))
             {
                 Unit unit;
 
-                _block.parse_step_back();
+                _buffer.parse_step_back();
                 if (parseUnit(unit)) {
                     if (cur_depth > 1) {
-                        ConfigNode * node = root.get();
+                        MarkupNode * node = root.get();
                         for (int i = 0; i < cur_depth; i++) {
                             node = node->getSubNodes().at(node->subNodesCount()-1).get();
                         }
@@ -146,12 +146,12 @@ namespace sgx {
                 }
             /* On block name char */
             }
-            else if (isOnSignature("sgx_cfg_block_name_start"))
+            else if (isOnSignature("sgx_mrk_block_name_start"))
             {
                 std::string name;
                 if (parseBlockName(name)) {
                     if (cur_depth > 0) {
-                        ConfigNode * node = root.get();
+                        MarkupNode * node = root.get();
                         for (int i = 0; i < cur_depth; i++) {
                             node = node->getSubNodes().at(node->subNodesCount()-1).get();
                         }
@@ -164,7 +164,7 @@ namespace sgx {
                 }
                 continue;
             }
-            else if (!isOnSignature("space"))
+            else if (!isOnSignature("space") || !isOnSignature("sgx_mrk_end_line"))
             {
                 _errno = SGXP_DATA_OUTSIDE_BLOCK;
                 break;
@@ -179,37 +179,37 @@ namespace sgx {
     }
 
     int
-    sgxConfigParser::prepare_to_sign_cmp(const ISignature * sign, std::string& res)
+    sgxMarkupParser::prepare_to_sign_cmp(const ISignature * sign, std::string& res)
     {
         res.clear();
         int i;
-        for (i = 0; i < sign->maxLen(); i++, _block.parser_step()) {
-            if (_block.parsing_info().notEnd())
-                res.append(1, _block.parsing_info().ch());
+        for (i = 0; i < sign->maxLen(); i++, _buffer.parser_step()) {
+            if (_buffer.parsing_info())
+                res.append(1, _buffer.parsing_info().ch());
         }
 
-        _block.parse_step_back(i);
+        _buffer.parse_step_back(i);
         return i;
     }
 
     void
-    sgxConfigParser::skipSpaces(bool assert_new_line)
+    sgxMarkupParser::skipSpaces(bool assert_new_line)
     {
         bool newline = false;
-        while (_block.parsing_info() && _block.parsing_info().ch() == ' ') {
-            if (_block.parsing_info().jumped_to_new_line() && assert_new_line) { break; }
-            _block.parser_step();
+        while (_buffer.parsing_info() && _buffer.parsing_info().ch() == ' ') {
+            if (_buffer.parsing_info().jumped_to_new_line() && assert_new_line) { break; }
+            _buffer.parser_step();
         }
     }
 
     bool
-    sgxConfigParser::isOnSignature(const std::string& sign_name)
+    sgxMarkupParser::isOnSignature(const std::string& sign_name)
     {
         return isOnSignature(signatureManager::getSignature(sign_name));
     }
 
     bool
-    sgxConfigParser::isOnSignature(const ISignature * sign)
+    sgxMarkupParser::isOnSignature(const ISignature * sign)
     {
         std::string cmp_str;
         prepare_to_sign_cmp(sign, cmp_str);
@@ -218,70 +218,70 @@ namespace sgx {
     }
 
     bool
-    sgxConfigParser::seekSignature(const ISignature * sign)
+    sgxMarkupParser::seekSignature(const ISignature * sign)
     {
         do {
             if ( isOnSignature(sign) ) return true;
-        } while (_block.parser_step());
+        } while (_buffer.parser_step());
 
         return false;
     }
 
     bool
-    sgxConfigParser::seekSignature(const std::string& name)
+    sgxMarkupParser::seekSignature(const std::string& name)
     {
         return seekSignature(signatureManager::getSignature(name));
     }
 
     bool
-    sgxConfigParser::seekSignatureStrict(const ISignature * sign, char ch)
+    sgxMarkupParser::seekSignatureStrict(const ISignature * sign, char ch)
     {
         do {
-            if (_block.parsing_info().ch() != ch) { /*skip only ch*/
+            if (_buffer.parsing_info().ch() != ch) { /*skip only ch*/
                 if (isOnSignature(sign))
                     return true;
                 else
                     return false;
             }
-        } while (_block.parser_step());
+        } while (_buffer.parser_step());
 
         return false;
     }
 
     bool
-    sgxConfigParser::seekSignatureStrict(const std::string& name, char ch)
+    sgxMarkupParser::seekSignatureStrict(const std::string& name, char ch)
     {
         return seekSignatureStrict(signatureManager::getSignature(name), ch);
     }
 
     bool
-    sgxConfigParser::seekThisLine(const ISignature * sign)
+    sgxMarkupParser::seekThisLine(const ISignature * sign)
     {
         int i = 0;
         do {
-            if (i && _block.parsing_info().jumped_to_new_line()) {
+            if (i && _buffer.parsing_info().jumped_to_new_line()) {
                 return false;
             } else if (isOnSignature(sign)) {
                 return true;
             }
             i = 1;
-        } while (_block.parser_step());
+        } while (_buffer.parser_step());
         return false;
     }
 
     bool
-    sgxConfigParser::seekThisLine(const std::string& name)
+    sgxMarkupParser::seekThisLine(const std::string& name)
     {
         return seekThisLine(signatureManager::getSignature(name));
     }
 
     bool
-    sgxConfigParser::parseBlockName(std::string& res)
+    sgxMarkupParser::parseBlockName(std::string& res)
     {
         res.clear();
-        while (_block.parser_step()) {
-            if (!isOnSignature("sgx_cfg_name")) {
-                switch (_block.parsing_info().ch()) {
+        while (_buffer.parser_step()) {
+            if (!isOnSignature("sgx_mrk_name")) {
+                switch (_buffer.parsing_info().ch()) {
                     case ']':
                         return true;
                     case '[':
@@ -292,7 +292,7 @@ namespace sgx {
                         break;
                 }
             } else {
-                res.append(1, _block.parsing_info().ch());
+                res.append(1, _buffer.parsing_info().ch());
             }
         }
 
@@ -300,31 +300,31 @@ namespace sgx {
     }
 
     std::string
-    sgxConfigParser::parseUnitName()
+    sgxMarkupParser::parseUnitName()
     {
         std::string name;
 
         //add errno setup
-        while (_block.parser_step()) {
-            if (isOnSignature("sgx_cfg_var_name"))
+        while (_buffer.parser_step()) {
+            if (isOnSignature("sgx_mrk_var_name"))
             {
-                name.append(1, _block.parsing_info().ch());
+                name.append(1, _buffer.parsing_info().ch());
             }
             else
             {
                 skipSpaces();
-                if (!_block.parsing_info().jumped_to_new_line())
+                if (!_buffer.parsing_info().jumped_to_new_line())
                 {
-                    if (isOnSignature("sgx_cfg_assign"))
+                    if (isOnSignature("sgx_mrk_assign"))
                     {
                         //skip assign sign
-                        _block.parse_step_back();
-                        if (seekSignature("sgx_cfg_assign"))
+                        _buffer.parse_step_back();
+                        if (seekSignature("sgx_mrk_assign"))
                         {
                             //skip to value
-                            _block.parser_step();
+                            _buffer.parser_step();
                             skipSpaces();
-                            _block.parse_step_back();
+                            _buffer.parse_step_back();
                             return name;
                         }
                         else
@@ -350,19 +350,20 @@ namespace sgx {
         return "";
     }
 
-    std::string
-    sgxConfigParser::parseUnitValue()
+    bool
+    sgxMarkupParser::parseUnitValue(std::string& value)
     {
-        std::string value;
-
-        while (_block.parser_step()) {
-            if (isOnSignature("sgx_cfg_var_value")) {
-                value.append(1, _block.parsing_info().ch());
+        bool single = true;
+        value.clear();
+        while (_buffer.parser_step()) {
+            if (isOnSignature("sgx_mrk_var_value")) {
+                value.append(1, _buffer.parsing_info().ch());
             } else if (isOnSignature("space")) { /* is array? */
                 skipSpaces();
-            } else if (isOnSignature("sgx_cfg_array_separator")) {
-                value.append(1, _block.parsing_info().ch());
-            } else if (isOnSignature("sgx_cfg_end_line")) {
+            } else if (isOnSignature("sgx_mrk_array_separator")) {
+                value.append(1, _buffer.parsing_info().ch());
+                single = false;
+            } else if (isOnSignature("sgx_mrk_end_line")) {
                 break;
             } else {
                 _errno = SGXP_AMBIGOUS;
@@ -370,11 +371,11 @@ namespace sgx {
             }
         }
 
-        return value;
+        return single;
     }
 
     bool
-    sgxConfigParser::parseUnit(Unit& u)
+    sgxMarkupParser::parseUnit(Unit& u)
     {
         bool brakets_used = false;
         bool name_readed = false;
@@ -387,21 +388,36 @@ namespace sgx {
             return false;
         }
 
-        value = parseUnitValue();
-        u.set({ value });
+        bool isSingle = parseUnitValue(value);
+
+        if (value.length() > 0) {
+            if (isSingle) {
+
+            } else {
+
+            }
+        } else {
+            return false;
+        }
+
+        if (isSingle) {
+        } else {
+
+        }
+        u.setAny(value); //todo
 
         return true;
     }
 
     //mb logger must be print?
     void
-    sgxConfigParser::print_error()
+    sgxMarkupParser::print_error()
     {
-        int err_line = _block.parsing_info().notEnd() ? _block.parsing_info().getpos().row : _block.parsing_info().getpos().row-1;
+        int err_line = _buffer.parsing_info().notEnd() ? _buffer.parsing_info().getpos().row : _buffer.parsing_info().getpos().row-1;
         std::cerr << "Error occured during parsing. Parsing file: " << _parsing_file << std::endl;
-        std::cerr << "  >> " << "\"" << _block[err_line] << "\"" << std::endl;
+        std::cerr << "  >> " << "\"" << _buffer[err_line] << "\"" << std::endl;
         std::cerr << "Error number: " << _errno << " Reason: " << sgx_parser_strerror_tab[_errno].name << ": " <<
-            sgx_parser_strerror_tab[_errno].description << std::endl;
+            sgx_parser_strerror_tab[_errno].description << std::endl << std::endl;
     }
 
 } /* sgx  */ 

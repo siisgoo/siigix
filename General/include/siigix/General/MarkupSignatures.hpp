@@ -25,7 +25,7 @@
  *
  */
 
-namespace sgx {
+namespace sgx::Markup {
     class ISignature {
         public:
             ISignature() {  }
@@ -99,29 +99,27 @@ namespace sgx {
                 { "space", new signChar(' ') },
 
 
-                { "sgx_cfg_assign",           new signVec({ ":", "=", ":=" }) },
+                { "sgx_mrk_assign",           new signVec({ ":", "=", ":=" }) },
 
                 //do some thing with this copy
-                { "sgx_cfg_var_name",         new signCharFun([](const char ch){ return std::isalnum(ch) || ch == '_'; }) },
-                { "sgx_cfg_var_value",        new signCharFun([](const char ch){ return std::isalnum(ch) || ch == '_' || ch == '"'; }) },
+                { "sgx_mrk_var_name",         new signCharFun([](const char ch){ return std::isalnum(ch) || ch == '_'; }) },
+                { "sgx_mrk_var_value",        new signCharFun([](const char ch){ return std::isalnum(ch) || ch == '_' || ch == '"'; }) },
                 //mean block name, raname??
-                { "sgx_cfg_name",             new signCharFun([](const char ch){ return std::isalnum(ch) ||
+                { "sgx_mrk_name",             new signCharFun([](const char ch){ return std::isalnum(ch) ||
                                                                                         std::isspace(ch) ||
                                                                                         ch == '-' ||
                                                                                         ch == '_' ||
                                                                                         ch == '.' ||
                                                                                         ch == '@'; }) },
 
-                { "sgx_cfg_end_line",         new signChar(';') },
-                { "sgx_cfg_block_start",      new signChar('{') },
-                { "sgx_cfg_block_end",        new signChar('}') },
-                { "sgx_cfg_block_name_start", new signChar('[') },
-                { "sgx_cfg_block_name_end",   new signChar(']') },
-                { "sgx_cfg_array_separator",  new signChar(',') },
-                /* { "sgx_cfg_array_start",      new signChar('[') }, */
-                /* { "sgx_cfg_array_end",        new signChar(']') }, */
-                { "sgx_cfg_string",           new signChar('"') },
-                { "sgx_cfg_escape_new_line",  new signChar('\\') },
+                { "sgx_mrk_end_line",         new signChar(';') },
+                { "sgx_mrk_block_start",      new signChar('{') },
+                { "sgx_mrk_block_end",        new signChar('}') },
+                { "sgx_mrk_block_name_start", new signChar('[') },
+                { "sgx_mrk_block_name_end",   new signChar(']') },
+                { "sgx_mrk_array_separator",  new signChar(',') },
+                { "sgx_mrk_string",           new signChar('"') },
+                { "sgx_mrk_escape_new_line",  new signChar('\\') },
             };
         public:
             signatureManager();
