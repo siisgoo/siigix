@@ -86,6 +86,7 @@ set(GENERAL_SOURCES_LIST
     ${GENERAL_SOUCES_DIR}/Formatter.cpp
     ${GENERAL_SOUCES_DIR}/ThreadPool.cpp
     ${GENERAL_SOUCES_DIR}/Encoding.cpp
+    ${GENERAL_SOUCES_DIR}/Config.cpp
     ${GENERAL_SOUCES_DIR}/ConfigReader.cpp
     ${GENERAL_SOUCES_DIR}/ConfigSignatures.cpp
 )

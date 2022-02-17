@@ -5,6 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <memory>
+#include <system_error>
 
 namespace sgx {
 
@@ -27,18 +28,18 @@ namespace sgx {
     sgxConfigReader::sgxConfigReader()
         : ConfigReader() {  }
 
-    IConfigNode *
+    sgxConfigReader::~sgxConfigReader()
+    {  }
+
+    [[nodiscard]] std::unique_ptr<ConfigNode>
     sgxConfigReader::read(const std::string& path)
     {
         sgxConfigParser parser;
-
-        IConfigNode * root = parser.parseFile(path);
-
-        return root;
+        return std::move(parser.parseFile(path));;
     }
 
     bool
-    sgxConfigReader::write(const ConfigRoot& conf, const std::string& path)
+    sgxConfigReader::write(const ConfigNode& conf, const std::string& path)
     {
         return false;
     }
@@ -61,155 +62,346 @@ namespace sgx {
     sgxConfigParser::sgxConfigParser() {  }
     sgxConfigParser::~sgxConfigParser() {  }
 
-    IConfigNode *
+    std::unique_ptr<ConfigNode>
     sgxConfigParser::parseFile(const std::string& file_path)
     {
         _parsing_file = file_path;
-        std::unique_ptr<IConfigNode> root = nullptr;
+        std::ifstream file(_parsing_file);
+        for (std::string buff; std::getline(file, buff); ) {
+            _block.add_line(buff);
+        }
 
-        _root_block = nullptr;
+        file.close();
 
-        return root.release(); //its ok??
+        return std::move(parse());
     }
 
     std::string
-    sgxConfigParser::reverseParse(IConfigNode * node)
+    sgxConfigParser::reverseParse(ConfigNode * node)
     {
         return "";
     }
 
-    void
-    sgxConfigParser::bufferizeFile(const std::string& path)
+    std::unique_ptr<ConfigNode>
+    sgxConfigParser::parse()
     {
-        std::ifstream file(path);
-        std::string file_content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-        std::copy(file_content.begin(), file_content.end(), _buffer.begin());
-        file.close();
-    }
-
-    int
-    sgxConfigParser::prepare_to_sign_cmp(const ISignature * sign, const linePosition pos, std::string& res)
-    {
-        return _buffer.getline(pos.row, pos.col, pos.col + sign->maxLen(), res);
-    }
-
-    std::unique_ptr<BlockInfo>
-    sgxConfigParser::createBlock(int i, linePosition pre_pos, BlockInfo * parent)
-    {
-        const ISignature * start_sign = signatureManager::getSignature("sgx_cfg_block_start");
-        const ISignature * end_sign   = signatureManager::getSignature("sgx_cfg_block_end");
-        int col = pre_pos.col,
-            row = pre_pos.row;
-        char ch;
-        BlockInfo::Borders block_borders;
-        BlockInfo::Lines lines;
-        std::string line_buffer; //prepare before add to lines
-
-        i = col = row = 0;
-        for (; _buffer[i] < _buffer.size(); i++)
-        {
-            ch = _buffer[i];
-            if (ch == '\n') {
-                col = 0;
-                row++;
-                continue;
-            }
-
-            std::string cmp_bs;
-            std::string cmp_be;
-            prepare_to_sign_cmp(start_sign, linePosition(row, col), cmp_bs);
-            prepare_to_sign_cmp(end_sign, linePosition(row, col), cmp_be);
-
-            if (start_sign->isSign(cmp_be)) {
-                block_borders.start = linePosition(row, col);
-            } else if (end_sign->isSign(cmp_be)) {
-                block_borders.end = linePosition(row, col);
-            }
-
-            col++;
-        }
-    }
-
-    int
-    sgxConfigParser::createBlocks()
-    {
-        if (_buffer.size() <= 0) {
+        if (_block.linesCount() <= 0) {
             return 0;
         }
 
-        const ISignature * start_sign = signatureManager::getSignature("sgx_cfg_block_start");
-        const ISignature * end_sign   = signatureManager::getSignature("sgx_cfg_block_end");
-        char ch;
-        int col, row;
-        int depth = 0;
+        std::unique_ptr<ConfigNode> root = std::make_unique<ConfigNode>("root", nullptr);
+        int cur_depth = -1;
+        int even = 0;
 
-        std::vector<BlockInfo::Borders> blocks_borders;
+        while (_block.parser_step()) {
+            /* On block start char */
+            if (seekSignatureStrict("sgx_cfg_block_start"))
+            {
+                if (cur_depth >= 0) { //root
+                    ConfigNode * node = root.get();
+                    //find target node
+                    for (int i = 0; i < cur_depth; i++) {
+                        node = node->getSubNodes().at(node->subNodesCount()-1).get();
+                    }
+                    node->addSubNode("unnamed");
+                }
+                even++;
+                cur_depth++;
+            /* On block end char */
+            }
+            else if (isOnSignature("sgx_cfg_block_end"))
+            {
+                if (cur_depth < 0) {
+                    _errno = SGXP_END_SIGN_BEFORE_START;
+                    break;
+                }
+                even++;
+                cur_depth--;
+            }
+            else if (cur_depth < 0 && even % 2 != 0)
+            {
+                _errno = SGXP_DATA_OUTSIDE_BLOCK;
+                print_error();
+                throw std::runtime_error(eprintf("TUTA BEDA"));
+                break;
+            /* On variable name char */
+            }
+            else if (isOnSignature("sgx_cfg_var_name"))
+            {
+                Unit unit;
 
-        /* find blocks borders */
-        col = row = 0;
-        for (; _buffer[col] < _buffer.size(); col++)
-        {
-            ch = _buffer[col];
-            if (ch == '\n') {
-                row++;
+                _block.parse_step_back();
+                if (parseUnit(unit)) {
+                    if (cur_depth > 1) {
+                        ConfigNode * node = root.get();
+                        for (int i = 0; i < cur_depth; i++) {
+                            node = node->getSubNodes().at(node->subNodesCount()-1).get();
+                        }
+                        node->addUnit(unit);
+                    } else {
+                        root->addUnit(unit);
+                    }
+                } else {
+                    break;
+                }
+            /* On block name char */
+            }
+            else if (isOnSignature("sgx_cfg_block_name_start"))
+            {
+                std::string name;
+                if (parseBlockName(name)) {
+                    if (cur_depth > 0) {
+                        ConfigNode * node = root.get();
+                        for (int i = 0; i < cur_depth; i++) {
+                            node = node->getSubNodes().at(node->subNodesCount()-1).get();
+                        }
+                        node->setName(name);
+                    } else {
+                        root->setName(name);
+                    }
+                } else {
+                    break;
+                }
                 continue;
             }
-
-            std::string cmp_bs;
-            std::string cmp_be;
-            prepare_to_sign_cmp(start_sign, linePosition(row, col), cmp_bs);
-            prepare_to_sign_cmp(end_sign, linePosition(row, col), cmp_be);
-
-            if (start_sign->isSign(cmp_bs)) {
-                BlockInfo::Borders cur_borders(linePosition(row, col), linePosition());
-                blocks_borders.push_back(cur_borders);
-                depth++;
-            } else if (end_sign->isSign(cmp_be)) {
-                depth--;
-                blocks_borders.at(depth).end = linePosition(row, col);
+            else if (!isOnSignature("space"))
+            {
+                _errno = SGXP_DATA_OUTSIDE_BLOCK;
+                break;
             }
+        } /* End main parse loop */
 
-            col++;
+        if (_errno != SGXP_OK) {
+            print_error();
         }
 
-        return blocks_borders.size();
+        return std::move(root);
     }
 
-    /* void */
-    /* sgxConfigReader::skipSpaces(BlockInfo& block) */
-    /* { */
-    /*     BlockInfo::ParseStepInfo psi; */
-    /*     while ((psi = block.parser_step()).no_more_counten()) { */
-    /*         if (psi.ch() != ' ') return; */
-    /*     } */
-    /* } */
+    int
+    sgxConfigParser::prepare_to_sign_cmp(const ISignature * sign, std::string& res)
+    {
+        res.clear();
+        int i;
+        for (i = 0; i < sign->maxLen(); i++, _block.parser_step()) {
+            if (_block.parsing_info().notEnd())
+                res.append(1, _block.parsing_info().ch());
+        }
 
-    /* int */
-    /* sgxConfigReader::skipBeforeSignature() */
-    /* { */
-    /*     int i = 0; */
-    /*     char buf[sig->maxLen()]; */
-    /*     for (; i < line.length(); i++) { */
-    /*         std::memcpy(&buf[0], &line[i], sig->maxLen()); */
-    /*         buf[sig->maxLen()] = '\0'; */
-    /*         if ( sig->isSign( buf ) ) { */
-    /*             return i-1; */
-    /*         } */
-    /*     } */
-    /*     return -1; */
-    /* } */
+        _block.parse_step_back(i);
+        return i;
+    }
+
+    void
+    sgxConfigParser::skipSpaces(bool assert_new_line)
+    {
+        bool newline = false;
+        while (_block.parsing_info() && _block.parsing_info().ch() == ' ') {
+            if (_block.parsing_info().jumped_to_new_line() && assert_new_line) { break; }
+            _block.parser_step();
+        }
+    }
+
+    bool
+    sgxConfigParser::isOnSignature(const std::string& sign_name)
+    {
+        return isOnSignature(signatureManager::getSignature(sign_name));
+    }
+
+    bool
+    sgxConfigParser::isOnSignature(const ISignature * sign)
+    {
+        std::string cmp_str;
+        prepare_to_sign_cmp(sign, cmp_str);
+        if (sign->isSign(cmp_str)) return true;
+        return false;
+    }
+
+    bool
+    sgxConfigParser::seekSignature(const ISignature * sign)
+    {
+        do {
+            if ( isOnSignature(sign) ) return true;
+        } while (_block.parser_step());
+
+        return false;
+    }
+
+    bool
+    sgxConfigParser::seekSignature(const std::string& name)
+    {
+        return seekSignature(signatureManager::getSignature(name));
+    }
+
+    bool
+    sgxConfigParser::seekSignatureStrict(const ISignature * sign, char ch)
+    {
+        do {
+            if (_block.parsing_info().ch() != ch) { /*skip only ch*/
+                if (isOnSignature(sign))
+                    return true;
+                else
+                    return false;
+            }
+        } while (_block.parser_step());
+
+        return false;
+    }
+
+    bool
+    sgxConfigParser::seekSignatureStrict(const std::string& name, char ch)
+    {
+        return seekSignatureStrict(signatureManager::getSignature(name), ch);
+    }
+
+    bool
+    sgxConfigParser::seekThisLine(const ISignature * sign)
+    {
+        int i = 0;
+        do {
+            if (i && _block.parsing_info().jumped_to_new_line()) {
+                return false;
+            } else if (isOnSignature(sign)) {
+                return true;
+            }
+            i = 1;
+        } while (_block.parser_step());
+        return false;
+    }
+
+    bool
+    sgxConfigParser::seekThisLine(const std::string& name)
+    {
+        return seekThisLine(signatureManager::getSignature(name));
+    }
+
+    bool
+    sgxConfigParser::parseBlockName(std::string& res)
+    {
+        res.clear();
+        while (_block.parser_step()) {
+            if (!isOnSignature("sgx_cfg_name")) {
+                switch (_block.parsing_info().ch()) {
+                    case ']':
+                        return true;
+                    case '[':
+                    case '{':
+                    case '}':
+                    default:
+                        _errno = SGXP_NO_END_SIGNATURE;
+                        break;
+                }
+            } else {
+                res.append(1, _block.parsing_info().ch());
+            }
+        }
+
+        return false;
+    }
+
+    std::string
+    sgxConfigParser::parseUnitName()
+    {
+        std::string name;
+
+        //add errno setup
+        while (_block.parser_step()) {
+            if (isOnSignature("sgx_cfg_var_name"))
+            {
+                name.append(1, _block.parsing_info().ch());
+            }
+            else
+            {
+                skipSpaces();
+                if (!_block.parsing_info().jumped_to_new_line())
+                {
+                    if (isOnSignature("sgx_cfg_assign"))
+                    {
+                        //skip assign sign
+                        _block.parse_step_back();
+                        if (seekSignature("sgx_cfg_assign"))
+                        {
+                            //skip to value
+                            _block.parser_step();
+                            skipSpaces();
+                            _block.parse_step_back();
+                            return name;
+                        }
+                        else
+                        {
+                            _errno = SGXP_NO_VARIABLE_LOAD;
+                            return "";
+                        }
+                    }
+                    else
+                    {
+                        _errno = SGXP_NO_ASSIGN_SIGNATURE;
+                        break;
+                    }
+                }
+                else
+                {
+                    _errno = SGXP_NO_ASSIGN_SIGNATURE;
+                    break;
+                }
+            }
+        }
+
+        return "";
+    }
+
+    std::string
+    sgxConfigParser::parseUnitValue()
+    {
+        std::string value;
+
+        while (_block.parser_step()) {
+            if (isOnSignature("sgx_cfg_var_value")) {
+                value.append(1, _block.parsing_info().ch());
+            } else if (isOnSignature("space")) { /* is array? */
+                skipSpaces();
+            } else if (isOnSignature("sgx_cfg_array_separator")) {
+                value.append(1, _block.parsing_info().ch());
+            } else if (isOnSignature("sgx_cfg_end_line")) {
+                break;
+            } else {
+                _errno = SGXP_AMBIGOUS;
+                return "";
+            }
+        }
+
+        return value;
+    }
+
+    bool
+    sgxConfigParser::parseUnit(Unit& u)
+    {
+        bool brakets_used = false;
+        bool name_readed = false;
+        bool value_readed = false;
+        bool assign_found = false;
+        std::string value;
+
+        u.name() = parseUnitName();
+        if (u.name().length() <= 0) {
+            return false;
+        }
+
+        value = parseUnitValue();
+        u.set({ value });
+
+        return true;
+    }
 
     //mb logger must be print?
     void
-    sgxConfigParser::print_error(const BlockInfo& err_block)
+    sgxConfigParser::print_error()
     {
-        int err_line = err_block.parsing_info().getpos().row;
-        std::cerr << "Prsing error in file: " << _parsing_file << std::endl <<
-            "  Error in line: " << err_line << std::endl <<
-            "  >> " << err_block[err_line] << std::endl <<
-            "  Reason: " << sgx_parser_strerror_tab[_errno].name << ": " <<
-            sgx_parser_strerror_tab[_errno].description << std::endl <<
-            "Terminating reading precess" << std::endl;
+        int err_line = _block.parsing_info().notEnd() ? _block.parsing_info().getpos().row : _block.parsing_info().getpos().row-1;
+        std::cerr << "Error occured during parsing. Parsing file: " << _parsing_file << std::endl;
+        std::cerr << "  >> " << "\"" << _block[err_line] << "\"" << std::endl;
+        std::cerr << "Error number: " << _errno << " Reason: " << sgx_parser_strerror_tab[_errno].name << ": " <<
+            sgx_parser_strerror_tab[_errno].description << std::endl;
     }
 
 } /* sgx  */ 

@@ -4,12 +4,22 @@ project(${GENERAL_MODULE_NAME} LANGUAGES CXX VERSION ${GENERAL_MODULE_VERSION} D
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+###################
+#  find packages  #
+###################
+
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
 #########################
 #  building executable  #
 #########################
 
 add_library(${PROJECT_NAME} SHARED ${GENERAL_SOURCES_LIST})
 add_library(${SIIGIX_LIB_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
+
+target_link_libraries(${PROJECT_NAME} PUBLIC
+    Threads::Threads)
 
 ################################
 #  setting project properties  #
@@ -53,3 +63,9 @@ install(
     NAMESPACE   ${SIIGIX_LIB_NAME}::
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
 )
+
+#############
+#  testing  #
+#############
+
+add_subdirectory(test)

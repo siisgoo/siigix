@@ -61,9 +61,6 @@ namespace sgx {
             const SingleUnit& get() const      { return _load[0]; }
             const ArrayUnit&  getArray() const { return _load; }
 
-            Unit()
-            { }
-
             Unit(const std::string& name, const SingleUnit& u)
                 : _load({u}),
                 _name(name)

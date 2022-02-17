@@ -6,7 +6,6 @@
 #include <iostream>
 #include <mutex>
 
-#include "Formatter.hpp"
 #include "thread_pool.hpp"
 #include "BitFlag.hpp"
 #include "Config.hpp"
@@ -41,16 +40,12 @@
 // ADD config reader manager, using singleto signatureManager scuko :(
 
 #define SGX_PARSER_ERROR_MAP(XX) \
-    XX(OK,                    "success")                                                               \
-                                                                                                       \
-    XX(AMBIGOUS,              "ambigous")                                                              \
-    XX(EMPTY,                 "file empty")                                                            \
-    XX(NO_BLOCK_NAME,         "block have no name")                                                    \
-    XX(DATA_OUTSIDE_BLOCK,    "data outside of block")                                                 \
-    XX(NO_END_SIGNATURE,      "data have not end signature")                                           \
-    XX(END_SIGN_BEFORE_START, "found end block signature without start pair")                          \
-    XX(NO_ASSIGN_SIGNATURE,   "variable name has been readed, but assign signature not found")         \
-    XX(NO_VARIABLE_LOAD,      "variable name and assign sign has been readed, but cannot found value") \
+    XX(OK,                 "success")                     \
+                                                          \
+    XX(EMPTY,              "file empty")                  \
+    XX(NO_BLOCK_NAME,      "block have no name")          \
+    XX(DATA_OUTSIDE_BLOCK, "data outside of block")       \
+    XX(NO_END_SIGNATURE,   "data have not end signature") \
 
 
 namespace sgx {
@@ -84,60 +79,45 @@ namespace sgx {
             using Lines = std::vector<std::string>; //try to use charVectorBuffer
             class ParseStepInfo;
 
-            //rewrite with context oriented class to save memeory!
             class ParseStepInfo {
                 friend class BlockInfo;
                 linePosition _position;
-                bool _jumped_to_new_line;
-                bool _end;
+                bool _jumped_to_new_line = false;
+                bool _end = false;
                 char _ch;
                 public:
                     operator bool() const              { return !_end; }
                     const linePosition& getpos() const { return _position; }
                     char ch() const                    { return _ch; }
                     bool jumped_to_new_line() const    { return _jumped_to_new_line; }
-                    bool notEnd() const                { return !_end; }
-                    ParseStepInfo snapshot() const     { return ParseStepInfo((_position.col == -1) ? linePosition(0,0) : _position , _jumped_to_new_line, _end, _ch); }
+                    bool isEnd() const                 { return _end; }
+                    ParseStepInfo snupshot() const     { return ParseStepInfo(*this); }
 
                     ParseStepInfo()
-                        : _position(0, -1),
+                        : _position(0, 0),
                         _jumped_to_new_line(false),
                         _end(false),
-                        _ch('\0') {  }
+                        _ch(EOF) {  }
                     ParseStepInfo(const ParseStepInfo& other)
                         : _position(other._position),
                         _jumped_to_new_line(other._jumped_to_new_line),
                         _end(other._end),
                         _ch(other._ch) {  }
-
-                protected:
-                    ParseStepInfo(const linePosition& pos, bool jump, bool end, char ch)
-                        : _position(pos),
-                        _jumped_to_new_line(jump),
-                        _end(end),
-                        _ch(ch) {  }
             };
 
         private:
             Lines         _lines;
             ParseStepInfo _parsing_info;
-            std::vector<ParseStepInfo> _parsing_info_snaps;
-            int _max_snaps = 100; /* -1 mean no limitation */
-
+            std::vector<ParseStepInfo> _parsing_info_snaps; /* save */
+            int _max_snaps = 100; /* -1 no limitation */
         public:
             //iterate with Lines
-            std::string& operator[] (int i)             { return _lines.at(i); }
-            const std::string& operator[] (int i) const { return _lines.at(i); }
-            void remove_line(const int i)               { _lines.erase(_lines.begin() + i); } /*its ok??*/
-            void add_line(std::string line)             {
-                Formatter::trim(line);
-                if (line.size() > 0) {
-                    _lines.push_back(line);
-                }
-            }
+            std::string& operator[] (unsigned i)             { return _lines.at(i); }
+            const std::string& operator[] (unsigned i) const { return _lines.at(i); }
+            void add_line(const std::string line) { _lines.push_back(line); }
+            void remove_line(const unsigned i)    { _lines.erase(_lines.begin() + i); } /*its ok??*/
 
-            const int linesCount() const { return _lines.size(); }
-            const Lines& lines() const { return _lines; }
+            const int lines() const { return _lines.size(); }
             const ParseStepInfo& parsing_info() const { return _parsing_info; }
 
             /* Increment parsing pos col, if its end on cur line in _block, increment row; */
@@ -145,48 +125,48 @@ namespace sgx {
                 _parsing_info._jumped_to_new_line = false;
 
                 if (_parsing_info_snaps.size() >= _max_snaps) {
-                    if (_max_snaps > 0)
-                        _parsing_info_snaps.erase(_parsing_info_snaps.begin());
+                    _parsing_info_snaps.erase(_parsing_info_snaps.begin());
                 }
-                _parsing_info_snaps.push_back(_parsing_info.snapshot());
+                _parsing_info_snaps.push_back(_parsing_info.snupshot());
 
-                int &col_r = _parsing_info._position.col;
-                int &row_r = _parsing_info._position.row;
-                bool &jump_r = _parsing_info._jumped_to_new_line;
-                bool &end_r = _parsing_info._end;
-                char &ch_r = _parsing_info._ch;
+                int &l_col = _parsing_info._position.col;
+                int &l_row = _parsing_info._position.row;
 
-                if (++col_r < _lines[row_r].length())
-                {
-                    jump_r = false;
-                    ch_r = _lines[row_r][col_r];
+                /* not the whole line has been read yet */
+                if (l_col < _lines.at(l_row).length()) {
+                    _parsing_info._jumped_to_new_line = false;
+                    l_col++;
+                    _parsing_info._ch = _lines.at(l_row).at(l_col);
                 }
-                else if (++row_r < _lines.size()) {
-                    jump_r = true;
-                    col_r = 0;
-                    ch_r = _lines[row_r][col_r];
+                /* not last line in block */
+                else if (l_row < _lines.size()) {
+                    /* reset to next line */
+                    _parsing_info._jumped_to_new_line = true;
+                    l_row++;
+                    l_col = 0;
+                    _parsing_info._ch = _lines.at(l_row).at(l_col);
                 } else {
-                    end_r = true;
-                    ch_r = EOF;
+                    _parsing_info._end = true;
+                    _parsing_info._ch = EOF;
                 }
 
                 return _parsing_info;
             }
 
-            //redo with .erase()
             const ParseStepInfo& parse_step_back(int steps_back = 1) {
-                if (steps_back >= _parsing_info_snaps.size())
-                    throw std::runtime_error(eprintf("ParseStepInfo::", __func__, " Cannot load snap, his deleted or not exists"));
-
                 for (int i = 0; i < steps_back; i++) {
-                    _parsing_info = _parsing_info_snaps.at(_parsing_info_snaps.size()-1);
+                    /* _parsing_info = _parsing_info_snaps.at(_parsing_info_snaps.size()-1); */
+                    _parsing_info = *_parsing_info_snaps.end();
                     _parsing_info_snaps.pop_back();
                 }
 
                 return _parsing_info;
             }
 
-            BlockInfo(int max_back_steps_history = 100)
+            BlockInfo() {  }
+            BlockInfo(const Lines& block_text, int max_back_steps_history = 100)
+                : _lines(block_text),
+                _parsing_info()
             { }
             ~BlockInfo()
             {  }
@@ -213,31 +193,26 @@ namespace sgx {
 
             virtual ~sgxConfigParser();
         private:
-            std::unique_ptr<ConfigNode> parse();
-
+            void bufferizeFile(const std::string& file_path);
             int prepare_to_sign_cmp(const ISignature * sign, std::string& res);
-
-            void skipSpaces(bool assert_new_line = false); //stops on any char
-            bool isOnSignature(const ISignature* sign);
             bool isOnSignature(const std::string& sign_name);
-            bool seekThisLine(const ISignature * sign);
-            bool seekThisLine(const std::string& sign_name);
-            bool seekSignature(const ISignature * sign);
-            bool seekSignature(const std::string& sign_name);
-            bool seekSignatureStrict(const ISignature * sign, char ch = ' ');
-            bool seekSignatureStrict(const std::string& sign_name, char ch = ' ');
 
-            /* std::string stringBeforeSignature(const ISignature * searchSign); */
-
-            bool parseBlockName(std::string& res);
-
-            std::string parseUnitName(); /*stops on assign signature, or return empty line*/
-            std::string parseUnitValue();
-            bool parseUnit(Unit& u);
+            std::unique_ptr<ConfigNode> parse();
 
             void print_error();
 
-            sgx_parser_errno _errno = SGXP_OK;
+            void skipSpaces();
+            void seekSignature(const ISignature * searchSign);
+
+            /* std::string stringBeforeSignature(const ISignature * searchSign); */
+
+            int parseBlockName(std::string& res);
+            int parseBool(bool& res);
+            int parseDecimalType(double& res, bool& is_int);
+            int parseString(std::string& res);
+            int parseArray(ArrayUnit& res);
+
+            sgx_parser_errno _errno;
 
             BlockInfo   _block;
             std::string _parsing_file;

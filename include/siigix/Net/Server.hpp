@@ -65,14 +65,8 @@ namespace sgx {
                         int threads = std::thread::hardware_concurrency());
                 virtual ~ServerTCP();
 
-                /* Setup & Run serve loop
-                 * return ERRNO on fail or ServerTCP::UP on success */
-                int start();
-
-                /* Wait for end all threads in thread pool */
+                int  start();
                 void joinLoop();
-
-                /* Stop serve loop */
                 void stop();
 
                 /* Handlers setters */
@@ -114,6 +108,19 @@ namespace sgx {
                 std::list<std::unique_ptr<Client>> _clients_list;
                 std::mutex _clients_list_mutex;
 
+        };
+
+        class IServerBuilder {
+            public:
+                virtual ~IServerBuilder() {  }
+
+                virtual void buildSocket() const = 0;
+                virtual void buildProtocol() const = 0;
+                virtual void buildThreadPool() const = 0;
+                virtual void buildConnectionHandler() const = 0;
+                virtual void buildDisconnectionHandler() const = 0;
+                virtual void buildDataHandler() const = 0;
+                virtual void buildWorkDirecotory() const = 0;
         };
 
     } /* Net */ 
