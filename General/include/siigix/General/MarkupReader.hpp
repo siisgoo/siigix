@@ -9,8 +9,8 @@
 #include "Formatter.hpp"
 #include "thread_pool.hpp"
 #include "BitFlag.hpp"
-#include "Config.hpp"
-#include "ConfigSignatures.hpp"
+#include "MarkupObject.hpp"
+#include "MarkupSignatures.hpp"
 #include "Types.hpp"
 
 /*
@@ -18,11 +18,11 @@
  */
 
 /*
- * sgxConfig file standart:
+ * sgxMarkup file standart:
  *
  * All must be in blocks defined inside {}, blacks may be nested
  * Block optionaly may have a name defined inside [], name defines inside block, only one accepted
- * Setting aka ConfigUnit must have name(filed) and value separeted by ":" or "="
+ * Setting aka MarkupUnit must have name(filed) and value separeted by ":" or "="
  * Multiline values must be ecraned with "\" or if its a string all insize quotes will be readed in one Field(white spaces will be counted)
  *
  * Data types:
@@ -39,21 +39,23 @@
 // TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // !!!!!!!!!!_---------------------------!!!!!!!!!!!!!!!
 // ADD config reader manager, using singleto signatureManager scuko :(
+//
+// Add check for double defenition of [name] in block
 
 #define SGX_PARSER_ERROR_MAP(XX) \
-    XX(OK,                    "success")                                                               \
-                                                                                                       \
-    XX(AMBIGOUS,              "ambigous")                                                              \
-    XX(EMPTY,                 "file empty")                                                            \
-    XX(NO_BLOCK_NAME,         "block have no name")                                                    \
-    XX(DATA_OUTSIDE_BLOCK,    "data outside of block")                                                 \
-    XX(NO_END_SIGNATURE,      "data have not end signature")                                           \
-    XX(END_SIGN_BEFORE_START, "found end block signature without start pair")                          \
-    XX(NO_ASSIGN_SIGNATURE,   "variable name has been readed, but assign signature not found")         \
-    XX(NO_VARIABLE_LOAD,      "variable name and assign sign has been readed, but cannot found value") \
+    XX(OK,                    "success")                                                                    \
+                                                                                                            \
+    XX(AMBIGOUS,              "ambigous")                                                                   \
+    XX(EMPTY,                 "file empty")                                                                 \
+    XX(NO_BLOCK_NAME,         "block have no name")                                                         \
+    XX(DATA_OUTSIDE_BLOCK,    "data outside of block")                                                      \
+    XX(NO_END_SIGNATURE,      "data have not end signature")                                                \
+    XX(END_SIGN_BEFORE_START, "found end block signature without start pair")                               \
+    XX(NO_ASSIGN_SIGNATURE,   "variable name has been readed, but assign signature not found")              \
+    XX(NO_VARIABLE_LOAD,      "variable name and assign signature has been readed, but cannot find value")  \
 
 
-namespace sgx {
+namespace sgx::Markup {
 
     #define SGX_PARSER_ERRNO_GEN(num, str) SGXP_##num,
     enum sgx_parser_errno {
@@ -79,14 +81,14 @@ namespace sgx {
     };
 
     //RENAME TO ParseBuffer? */
-    class BlockInfo {
+    class ParseBuffer {
         public:
             using Lines = std::vector<std::string>; //try to use charVectorBuffer
             class ParseStepInfo;
 
             //rewrite with context oriented class to save memeory!
             class ParseStepInfo {
-                friend class BlockInfo;
+                friend class ParseBuffer;
                 linePosition _position;
                 bool _jumped_to_new_line;
                 bool _end;
@@ -186,9 +188,9 @@ namespace sgx {
                 return _parsing_info;
             }
 
-            BlockInfo(int max_back_steps_history = 100)
+            ParseBuffer(int max_back_steps_history = 100)
             { }
-            ~BlockInfo()
+            ~ParseBuffer()
             {  }
     };
 
@@ -196,24 +198,23 @@ namespace sgx {
     *                              Parsers                               *
     **********************************************************************/
 
-    class ConfigParser {
+    class IMarkupParser {
         private:
-            /* virtual ConfigNode* parseFile(const std::string& path) = 0; */
-            virtual std::unique_ptr<ConfigNode> parseFile(const std::string& path) = 0;
-            virtual std::string  reverseParse(ConfigNode * node) = 0;
+            virtual std::unique_ptr<MarkupNode> parseFile(const std::string& path) = 0;
+            virtual std::string  reverseParse(MarkupNode * node) = 0;
     };
 
-    class sgxConfigParser : public ConfigParser {
+    class sgxMarkupParser : public IMarkupParser {
         public:
-            sgxConfigParser();
+            sgxMarkupParser();
 
-            /* virtual ConfigNode* parseFile(const std::string& file_path) override; */
-            virtual std::unique_ptr<ConfigNode> parseFile(const std::string& file_path) override;
-            virtual std::string  reverseParse(ConfigNode * node) override;
+            /* virtual MarkupNode* parseFile(const std::string& file_path) override; */
+            virtual std::unique_ptr<MarkupNode> parseFile(const std::string& file_path) override;
+            virtual std::string  reverseParse(MarkupNode * node) override;
 
-            virtual ~sgxConfigParser();
+            virtual ~sgxMarkupParser();
         private:
-            std::unique_ptr<ConfigNode> parse();
+            std::unique_ptr<MarkupNode> parse();
 
             int prepare_to_sign_cmp(const ISignature * sign, std::string& res);
 
@@ -232,14 +233,14 @@ namespace sgx {
             bool parseBlockName(std::string& res);
 
             std::string parseUnitName(); /*stops on assign signature, or return empty line*/
-            std::string parseUnitValue();
+            bool parseUnitValue(std::string& ref); /* true mean single, false - array */
             bool parseUnit(Unit& u);
 
             void print_error();
 
             sgx_parser_errno _errno = SGXP_OK;
 
-            BlockInfo   _block;
+            ParseBuffer _buffer;
             std::string _parsing_file;
     };
 
@@ -247,27 +248,27 @@ namespace sgx {
     *                              Readers                               *
     **********************************************************************/
 
-    class ConfigReader {
+    class MarkupReader {
         public:
-            ConfigReader();
+            MarkupReader();
 
-            virtual std::unique_ptr<ConfigNode> read(const std::string& path) = 0;
-            virtual bool write(const ConfigNode&, const std::string& path) = 0;
+            virtual std::unique_ptr<MarkupNode> read(const std::string& path) = 0;
+            virtual bool write(const MarkupNode&, const std::string& path) = 0;
 
-            virtual ~ConfigReader();
+            virtual ~MarkupReader();
         private:
         protected:
             signatureManager * _signatureManager;
     };
 
-    class sgxConfigReader : public ConfigReader {
+    class sgxMarkupReader : public MarkupReader {
         public:
-            sgxConfigReader();
+            sgxMarkupReader();
 
-            virtual std::unique_ptr<ConfigNode> read(const std::string& path) override;
-            virtual bool write(const ConfigNode&, const std::string& path) override;
+            virtual std::unique_ptr<MarkupNode> read(const std::string& path) override;
+            virtual bool write(const MarkupNode&, const std::string& path) override;
 
-            virtual ~sgxConfigReader();
+            virtual ~sgxMarkupReader();
     };
 
     //TODO add json, xml ...

@@ -1,15 +1,15 @@
-#include <ConfigReader.hpp>
+#include <MarkupReader.hpp>
 #include <memory>
 #include <memory>
 
-using namespace sgx;
+using namespace sgx::Markup;
 
 int
 main(int argc, char** argv)
 {
-    sgxConfigReader reader;
+    sgxMarkupReader reader;
     try {
-        std::unique_ptr<ConfigNode> conf = reader.read(argc > 1 ? argv[1] : "./config.sgx");
+        std::unique_ptr<MarkupNode> conf = reader.read(argc > 1 ? argv[1] : "./config.sgx");
     }
     catch (std::exception& e) {
         std::cerr << e.what() << std::endl;
