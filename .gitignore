@@ -5,6 +5,9 @@ vgcore.*
 *.sqlite
 *.db
 
+compile_commands.json
+include/
+lib/
 build/
 CMakeLists.txt.user
 CMakeCache.txt
