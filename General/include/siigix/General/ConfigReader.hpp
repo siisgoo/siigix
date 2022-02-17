@@ -41,13 +41,16 @@
 // ADD config reader manager, using singleto signatureManager scuko :(
 
 #define SGX_PARSER_ERROR_MAP(XX) \
-    XX(OK,                    "success")                                      \
-                                                                              \
-    XX(EMPTY,                 "file empty")                                   \
-    XX(NO_BLOCK_NAME,         "block have no name")                           \
-    XX(DATA_OUTSIDE_BLOCK,    "data outside of block")                        \
-    XX(NO_END_SIGNATURE,      "data have not end signature")                  \
-    XX(END_SIGN_BEFORE_START, "found end block signature without start pair") \
+    XX(OK,                    "success")                                                               \
+                                                                                                       \
+    XX(AMBIGOUS,              "ambigous")                                                              \
+    XX(EMPTY,                 "file empty")                                                            \
+    XX(NO_BLOCK_NAME,         "block have no name")                                                    \
+    XX(DATA_OUTSIDE_BLOCK,    "data outside of block")                                                 \
+    XX(NO_END_SIGNATURE,      "data have not end signature")                                           \
+    XX(END_SIGN_BEFORE_START, "found end block signature without start pair")                          \
+    XX(NO_ASSIGN_SIGNATURE,   "variable name has been readed, but assign signature not found")         \
+    XX(NO_VARIABLE_LOAD,      "variable name and assign sign has been readed, but cannot found value") \
 
 
 namespace sgx {
@@ -214,9 +217,11 @@ namespace sgx {
 
             int prepare_to_sign_cmp(const ISignature * sign, std::string& res);
 
-            void skipSpaces();
+            void skipSpaces(bool assert_new_line = false); //stops on any char
             bool isOnSignature(const ISignature* sign);
             bool isOnSignature(const std::string& sign_name);
+            bool seekThisLine(const ISignature * sign);
+            bool seekThisLine(const std::string& sign_name);
             bool seekSignature(const ISignature * sign);
             bool seekSignature(const std::string& sign_name);
             bool seekSignatureStrict(const ISignature * sign, char ch = ' ');
@@ -224,8 +229,11 @@ namespace sgx {
 
             /* std::string stringBeforeSignature(const ISignature * searchSign); */
 
-            bool parseUnit(Unit& u);
             bool parseBlockName(std::string& res);
+
+            std::string parseUnitName(); /*stops on assign signature, or return empty line*/
+            std::string parseUnitValue();
+            bool parseUnit(Unit& u);
 
             void print_error();
 
