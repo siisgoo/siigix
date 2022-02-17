@@ -63,24 +63,6 @@ namespace sgx::Markup {
     };
     #undef SGX_PARSER_ERRNO_GEN
 
-    class ReadingState : public BitFlag<bitflag32_t> {
-        public:
-        enum {
-            in_block,
-            in_quotes,
-            in_word,
-
-            field_readed,
-
-            after_assigment,
-
-            error,
-            reading,
-            end_reading,
-        };
-    };
-
-    //RENAME TO ParseBuffer? */
     class ParseBuffer {
         public:
             using Lines = std::vector<std::string>; //try to use charVectorBuffer
@@ -121,6 +103,7 @@ namespace sgx::Markup {
             };
 
         private:
+            //rename to better
             Lines         _lines;
             ParseStepInfo _parsing_info;
             std::vector<ParseStepInfo> _parsing_info_snaps;
@@ -208,7 +191,6 @@ namespace sgx::Markup {
         public:
             sgxMarkupParser();
 
-            /* virtual MarkupNode* parseFile(const std::string& file_path) override; */
             virtual std::unique_ptr<MarkupNode> parseFile(const std::string& file_path) override;
             virtual std::string  reverseParse(MarkupNode * node) override;
 
@@ -227,8 +209,6 @@ namespace sgx::Markup {
             bool seekSignature(const std::string& sign_name);
             bool seekSignatureStrict(const ISignature * sign, char ch = ' ');
             bool seekSignatureStrict(const std::string& sign_name, char ch = ' ');
-
-            /* std::string stringBeforeSignature(const ISignature * searchSign); */
 
             bool parseBlockName(std::string& res);
 
