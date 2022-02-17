@@ -1,5 +1,7 @@
 # SIIGIX
 
+![Lines of code](https://img.shields.io/tokei/lines/github.com/siisgoo/siigix?style=flat-square)
+
 Moduled crosplatform C++ library(almoust framework)
 
 # Table of content
