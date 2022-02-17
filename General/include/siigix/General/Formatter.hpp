@@ -15,11 +15,22 @@ namespace sgx
             static std::string toLower(const std::string& str);
             static std::string toUpper(const std::string& str);
 
+            static std::string trim(const std::string& str);
+
             virtual ~Formatter();
         private:
             Formatter();
     };
 
+    inline std::string
+    Formatter::trim(const std::string& str)
+    {
+        size_t startPos = str.find_first_not_of(" \t");
+        if ( startPos == std::string::npos  )
+            return "";
+        size_t endPos = str.find_last_not_of(" \t");
+        return str.substr(startPos, endPos - startPos + 1);
+    }
 
     template<typename T>
     inline std::string

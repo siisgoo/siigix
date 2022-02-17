@@ -13,6 +13,7 @@ namespace sgx
             static std::string toHex(T, bool include0x = false);
 
             static std::string toLower(const std::string& str);
+            static std::string toUpper(const std::string& str);
 
             virtual ~Formatter();
         private:

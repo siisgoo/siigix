@@ -3,27 +3,12 @@
 
 // MOVE IT TO SOURCE CODE FILE
 
-#include <functional>
-#include <cctype>
 #include <siigix/General/eprintf.hpp>
 #include <initializer_list>
 #include <string>
 #include <vector>
-#include <regex>
 #include <map>
 #include <cstring>
-#include <functional>
-
-
-/*
- *
- *       **************
- *       *  ATENTION! *
- *       **************
- *
- * Signatures cannot contain spaces!
- *
- */
 
 namespace sgx {
     class ISignature {
@@ -78,33 +63,12 @@ namespace sgx {
                 : _ch(ch) {  }
     };
 
-    class signCharFun : public ISignature {
-        private:
-            const std::function<bool(const char)> _f;
-        public:
-            virtual bool isSign(const std::string ch) const {
-                return _f(ch[0]);
-            }
-
-            virtual unsigned maxLen() const { return 1; }
-
-            signCharFun(const std::function<bool(const char)>& f) : _f(f) {  }
-    };
-
     //singleton
     class signatureManager {
         private:
             static signatureManager * _smInstance;
             std::map<std::string, ISignature*> _signatures = {
-                { "sgx_cfg_assign",           new signVec({ ":", "=", ":=" }) },
-
-                //do some thing with this copy
-                { "sgx_cfg_var",              new signCharFun([](const char ch){ return std::isalnum(ch); }) },
-                //mean block name, raname??
-                { "sgx_cfg_name",             new signCharFun([](const char ch){ return std::isalnum(ch) ||
-                                                                                        std::isspace(ch) ||
-                                                                                        std::isgraph(ch) &&
-                                                                                        ch != ']'; }) },
+                { "sgx_assign",           new signVec({ ":", "=", ":=" }) },
 
                 { "sgx_cfg_block_start",      new signChar('{') },
                 { "sgx_cfg_block_end",        new signChar('}') },
@@ -116,12 +80,18 @@ namespace sgx {
                 { "sgx_cfg_escape_new_line",  new signChar('\\') },
             };
         public:
-            signatureManager();
+            signatureManager() {
+                if (_smInstance != nullptr) {
+                    _smInstance = this;
+                } else {
+                    throw std::runtime_error(eprintf("Zachm singleton dwajdi vizivaem????"));
+                }
+            }
 
             static const ISignature * getSignature(const std::string& signName);
             static void addSignature(const std::string& name, ISignature* sign);
 
-            virtual ~signatureManager();
+            virtual ~signatureManager() {  }
     };
 
 } /* sgx  */ 
