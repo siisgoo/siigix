@@ -1,5 +1,6 @@
-#include <Server.hpp>
-#include <Protocol.hpp>
+#include "siigix/Net/Server.hpp"
+#include "siigix/Net/Protocol.hpp"
+
 #include <stdexcept>
 #include <thread>
 

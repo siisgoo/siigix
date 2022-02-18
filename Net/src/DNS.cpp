@@ -1,7 +1,7 @@
-#include <DNS.hpp>
-#include <HostEntry.hpp>
-#include <INetDefs.hpp>
-#include <SocketAddress.hpp>
+#include "siigix/Net/DNS.hpp"
+#include "siigix/Net/HostEntry.hpp"
+#include "siigix/Net/INetDefs.hpp"
+#include "siigix/Net/SocketAddress.hpp"
 
 #include <list>
 #include <stdexcept>

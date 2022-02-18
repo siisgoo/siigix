@@ -1,11 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-
-#####################
-#  MODULE SETTINGS  #
-#####################
-
 include(CMakeSources.cmake)
-
 project(${SIIGIX_LIB_NAME} LANGUAGES CXX VERSION ${SIIGIX_VERSION} DESCRIPTION ${SIIGIX_DESCRIPTION})
 
 # set(BUILD_EXAMPLES TRUE CACHE BOOL)
@@ -33,18 +27,21 @@ ENDIF()
 #  sub directories  #
 #####################
 
+# include_directories(${CMAKE_SOURCE_DIR}/include)
+
 add_subdirectory(${GENERAL_MODULE_NAME})
 add_subdirectory(${NET_MODULE_NAME})
+add_subdirectory(${DATA_MODULE_NAME})
 
 ######################
 #  creating package  #
 ######################
 
 install(
-    EXPORT ${PROJECT_NAME}Targets
+    EXPORT      ${PROJECT_NAME}Targets
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
-    NAMESPACE ${PROJECT_NAME}::
-    FILE ${PROJECT_NAME}Targets.cmake
+    NAMESPACE   ${PROJECT_NAME}::
+    FILE        ${PROJECT_NAME}Targets.cmake
 )
 
 include(CMakePackageConfigHelpers)
@@ -58,26 +55,20 @@ configure_package_config_file(
 
 write_basic_package_version_file(
     ${CMAKE_CURRENT_BINARY_DIR}/siigixConfigVersion.cmake
-    VERSION ${PROJECT_VERSION}
+    VERSION       ${PROJECT_VERSION}
     COMPATIBILITY SameMajorVersion
 )
 
 install(
     FILES "${CMAKE_CURRENT_BINARY_DIR}/siigixConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/siigixConfigVersion.cmake"
+            "${CMAKE_CURRENT_BINARY_DIR}/siigixConfigVersion.cmake"
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/siigix"
 )
 
-#############################
-#  installing export files  #
-#############################
-
-install( TARGETS ${NET_MODULE_NAME}         DESTINATION ${INSTALL_PREFIX}/lib                                               )
-install( TARGETS ${GENERAL_MODULE_NAME}     DESTINATION ${INSTALL_PREFIX}/lib                                               )
-install( FILES   ${NET_HEADERS_PUBLIC}      DESTINATION ${INSTALL_PREFIX}/include/${SIIGIX_LIB_NAME}/${NET_MODULE_NAME}     )
-install( FILES   ${NET_HEADERS_PRIVATE}     DESTINATION ${INSTALL_PREFIX}/include/${SIIGIX_LIB_NAME}/${NET_MODULE_NAME}     )
-install( FILES   ${GENERAL_HEADERS_PUBLIC}  DESTINATION ${INSTALL_PREFIX}/include/${SIIGIX_LIB_NAME}/${GENERAL_MODULE_NAME} )
-install( FILES   ${GENERAL_HEADERS_PRIVATE} DESTINATION ${INSTALL_PREFIX}/include/${SIIGIX_LIB_NAME}/${GENERAL_MODULE_NAME} )
+install(
+    DIRECTORY ${CMAKE_SOURCE_DIR}/include
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
 
 #############
 #  testing  #

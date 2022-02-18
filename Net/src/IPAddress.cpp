@@ -1,6 +1,5 @@
-#include <IPAddress.hpp>
-
-#include <eprintf.hpp>
+#include "siigix/Net/IPAddress.hpp"
+#include "siigix/General/eprintf.hpp"
 
 #include <regex>
 #include <cstring>

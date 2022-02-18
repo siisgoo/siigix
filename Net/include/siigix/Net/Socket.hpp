@@ -1,19 +1,17 @@
 #ifndef SOCKET_HPP_LEMCELXN
 #define SOCKET_HPP_LEMCELXN
 
-#include <siigix/General/eprintf.hpp>
+#include "siigix/General/eprintf.hpp"
 
-#include "INetDefs.hpp"
-#include "SocketAddress.hpp"
-#include "SocketOptions.hpp"
+#include "siigix/Net/INetDefs.hpp"
+#include "siigix/Net/SocketAddress.hpp"
+#include "siigix/Net/SocketOptions.hpp"
 
 #include <map>
 #include <stdexcept>
 #include <string>
 #include <iostream>
 #include <initializer_list>
-
-#include <string.h>
 
 namespace sgx {
     namespace Net {

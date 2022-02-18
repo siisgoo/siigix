@@ -9,11 +9,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #####################
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
+# find_package(Threads REQUIRED)
 
 #########################
 #  building executable  #
 #########################
+
+install(
+    DIRECTORY ${NET_INCLUDE_DIR}
+        DESTINATION ${CMAKE_SOURCE_DIR}/include/siigix
+)
 
 add_library(${PROJECT_NAME} SHARED ${NET_SOURCES_LIST})
 add_library(sgx::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
@@ -30,7 +35,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     ${GENERAL_MODULE_NAME}
-    Threads::Threads)
+)
 
 ################################
 #  setting project properties  #
@@ -45,14 +50,8 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     PRIVATE_HEADER "${NET_HEADERS_PRIVATE}"
 )
 
-target_include_directories(${PROJECT_NAME} PRIVATE
-    $<BUILD_INTERFACE:${NET_INCLUDE_DIR}>
-    $<INSTALL_INTERFACE:include>
-    # ${GENERAL_INCLUDE_DIRS}
-)
-
 target_include_directories(${PROJECT_NAME} PUBLIC
-    $<BUILD_INTERFACE:${NET_INCLUDE_DIR}>
+    $<BUILD_INTERFACE:${NET_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
 
@@ -63,12 +62,8 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 include(GNUInstallDirs)
 install(
     TARGETS ${PROJECT_NAME}
-    EXPORT siigixTargets
-    ARCHIVE       DESTINATION ${CMAKE_INSTALL_LIBDIR}
-
-    LIBRARY        DESTINATION ${CMAKE_SOURCE_DIR}/lib
-    PUBLIC_HEADER  DESTINATION ${CMAKE_SOURCE_DIR}/include/siigix/${PROJECT_NAME}
-    PRIVATE_HEADER DESTINATION ${CMAKE_SOURCE_DIR}/include/siigix/${PROJECT_NAME}
+    EXPORT  siigixTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
 install(

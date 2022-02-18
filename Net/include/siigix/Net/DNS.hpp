@@ -1,9 +1,9 @@
 #ifndef DNS_HPP_JFU0PBTS
 #define DNS_HPP_JFU0PBTS
 
-#include "INetDefs.hpp"
-#include "HostEntry.hpp"
-#include "IPAddress.hpp"
+#include "siigix/Net/INetDefs.hpp"
+#include "siigix/Net/HostEntry.hpp"
+#include "siigix/Net/IPAddress.hpp"
 
 #include <string>
 

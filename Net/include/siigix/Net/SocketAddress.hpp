@@ -1,11 +1,12 @@
 #ifndef SOCKETADDRESS_HPP_SNZTXJLY
 #define SOCKETADDRESS_HPP_SNZTXJLY
 
-#include <siigix/General/eprintf.hpp>
-#include "IPAddress.hpp"
-#include "INetDefs.hpp"
+#include "siigix/General/eprintf.hpp"
+#include "siigix/Net/IPAddress.hpp"
+#include "siigix/Net/INetDefs.hpp"
+
 #include <memory>
-#include <iostream> //REMOVE
+#include <iostream>
 
 namespace sgx {
     namespace Net {
