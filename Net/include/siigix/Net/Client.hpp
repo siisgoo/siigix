@@ -1,11 +1,11 @@
 #ifndef CLIENT_HPP_Q2HAEQTG
 #define CLIENT_HPP_Q2HAEQTG
 
-#include <string>
+#include "siigix/Net/Socket.hpp"
+#include "siigix/Net/INetDefs.hpp"
+#include "siigix/General/ThreadPool.hpp"
 
-#include <ThreadPool.hpp>
-#include "Socket.hpp"
-#include "INetDefs.hpp"
+#include <string>
 #include <type_traits>
 
 namespace sgx {

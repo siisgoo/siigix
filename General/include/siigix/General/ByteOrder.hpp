@@ -7,7 +7,8 @@
     #include <netinet/in.h>
 #endif
 
-#include "Types.hpp"
+#include "siigix/General/Types.hpp"
+
 #include <algorithm>
 #include <stdlib.h>
 

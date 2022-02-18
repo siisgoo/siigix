@@ -1,7 +1,8 @@
-#include <SocketAddress.hpp>
-#include <DNS.hpp>
-#include <HostEntry.hpp>
-#include <INetDefs.hpp>
+#include "siigix/Net/SocketAddress.hpp"
+#include "siigix/Net/DNS.hpp"
+#include "siigix/Net/HostEntry.hpp"
+#include "siigix/Net/INetDefs.hpp"
+
 #include <limits>
 #include <stdexcept>
 #include <string>

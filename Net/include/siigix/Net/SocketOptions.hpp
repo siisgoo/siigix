@@ -1,10 +1,11 @@
 #ifndef SOCKETOPTIONS_HPP_XSPLARQW
 #define SOCKETOPTIONS_HPP_XSPLARQW
 
-#include <siigix/General/eprintf.hpp>
+#include "siigix/General/eprintf.hpp"
+#include "siigix/Net/INetDefs.hpp"
+
 #include <memory>
 #include <iterator>
-#include "INetDefs.hpp"
 
 namespace sgx {
     namespace Net {

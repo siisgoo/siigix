@@ -1,8 +1,8 @@
 #ifndef HOSTENTRY_HPP_BK0VXEFJ
 #define HOSTENTRY_HPP_BK0VXEFJ
 
-#include "INetDefs.hpp"
-#include "IPAddress.hpp"
+#include "siigix/Net/INetDefs.hpp"
+#include "siigix/Net/IPAddress.hpp"
 
 #include <algorithm>
 #include <string>

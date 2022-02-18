@@ -16,7 +16,7 @@ FetchContent_MakeAvailable(googletest)
 add_executable(xcfg_read xcfg_read.cpp)
 
 target_link_libraries(xcfg_read PUBLIC
-    siigix::General
+    siigix::Data
 # gtest_main
 )
 

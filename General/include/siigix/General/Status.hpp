@@ -1,7 +1,7 @@
 #ifndef STATUS_HPP_UO860IYO
 #define STATUS_HPP_UO860IYO
 
-#include "BitFlag.hpp"
+#include "siigix/General/BitFlag.hpp"
 
 namespace sgx {
     namespace TCP {

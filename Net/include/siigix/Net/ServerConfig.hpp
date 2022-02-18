@@ -1,0 +1,6 @@
+#ifndef SERVERCONFIG_HPP_ZA7QKERI
+#define SERVERCONFIG_HPP_ZA7QKERI
+
+
+
+#endif /* end of include guard: SERVERCONFIG_HPP_ZA7QKERI */
