@@ -1,16 +1,17 @@
 #ifndef SERVER_HPP_E2HLJCRX
 #define SERVER_HPP_E2HLJCRX
 
+#include "siigix/Net/INetDefs.hpp"
+#include "siigix/Net/Socket.hpp"
+#include "siigix/Net/Protocol.hpp"
+#include "siigix/General/thread_pool.hpp"
+
 #include <functional>
 #include <mutex>
 #include <string>
 #include <map>
 #include <list>
 
-#include "INetDefs.hpp"
-#include "Socket.hpp"
-#include "Protocol.hpp"
-#include <siigix/General/thread_pool.hpp>
 
 namespace sgx {
 

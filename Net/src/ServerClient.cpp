@@ -1,5 +1,5 @@
-#include <Server.hpp>
-#include <Protocol.hpp>
+#include "siigix/Net/Server.hpp"
+#include "siigix/Net/Protocol.hpp"
 
 namespace sgx {
 namespace Net {

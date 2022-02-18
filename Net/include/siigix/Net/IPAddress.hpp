@@ -4,11 +4,11 @@
 #include <string>
 #include <cstring>
 
-#include <siigix/General/Formatter.hpp>
-#include <siigix/General/ByteOrder.hpp>
-#include <siigix/General/Types.hpp>
+#include "siigix/General/Formatter.hpp"
+#include "siigix/General/ByteOrder.hpp"
+#include "siigix/General/Types.hpp"
 
-#include "INetDefs.hpp"
+#include "siigix/Net/INetDefs.hpp"
 
 namespace sgx {
     namespace Net {

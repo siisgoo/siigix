@@ -1,8 +1,8 @@
 #ifndef INETDEFS_HPP_UMTXQ5ZW
 #define INETDEFS_HPP_UMTXQ5ZW
 
+#include "siigix/General/Types.hpp"
 #include <vector>
-#include <siigix/General/Types.hpp>
 
 #ifdef __linux__
     #include <sys/ioctl.h>

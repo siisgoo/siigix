@@ -1,7 +1,8 @@
-#include <Encoding.hpp>
+#include "siigix/General/Encoding.hpp"
+#include "siigix/General/ByteOrder.hpp"
+#include "siigix/General/Types.hpp"
+
 #include <cstring>
-#include <ByteOrder.hpp>
-#include <Types.hpp>
 
 namespace sgx {
 

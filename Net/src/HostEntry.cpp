@@ -1,4 +1,5 @@
-#include <HostEntry.hpp>
+#include "siigix/Net/HostEntry.hpp"
+
 #include <assert.h>
 
 namespace sgx {

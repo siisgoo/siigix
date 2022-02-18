@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_HPP_NWSF605U
 #define PROTOCOL_HPP_NWSF605U
 
-#include "Socket.hpp"
+#include "siigix/Net/Socket.hpp"
 
 #include <memory>
 #include <string>
