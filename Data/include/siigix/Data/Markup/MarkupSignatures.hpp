@@ -102,8 +102,8 @@ namespace sgx::Markup {
                 { "sgx_mrk_assign",           new signVec({ ":", "=", ":=" }) },
 
                 //do some thing with this copy
-                { "sgx_mrk_var_name",         new signCharFun([](const char ch){ return std::isalnum(ch) || ch == '_'; }) },
-                { "sgx_mrk_var_value",        new signCharFun([](const char ch){ return std::isalnum(ch) || ch == '_' || ch == '"'; }) },
+                { "sgx_mrk_var_name",         new signCharFun([](const char ch){ return std::isalnum(ch) || ch == '_' || ch == '~' || ch == '/'; }) },
+                { "sgx_mrk_var_value",        new signCharFun([](const char ch){ return std::isalnum(ch) || ch == '_' || ch == '.'; }) },
                 //mean block name, raname??
                 { "sgx_mrk_name",             new signCharFun([](const char ch){ return std::isalnum(ch) ||
                                                                                         std::isspace(ch) ||
@@ -118,7 +118,8 @@ namespace sgx::Markup {
                 { "sgx_mrk_block_name_start", new signChar('[') },
                 { "sgx_mrk_block_name_end",   new signChar(']') },
                 { "sgx_mrk_array_separator",  new signChar(',') },
-                { "sgx_mrk_string",           new signChar('"') },
+                { "sgx_mrk_quotes",           new signChar('"') },
+                { "sgx_mrk_quotes_single",    new signChar('\'') },
                 { "sgx_mrk_escape_new_line",  new signChar('\\') },
             };
         public:

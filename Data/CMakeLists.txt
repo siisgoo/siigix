@@ -14,15 +14,10 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 #  building executable  #
 #########################
 
-# install(
-#     DIRECTORY ${DATA_INCLUDE_DIR}
-#         DESTINATION ${CMAKE_SOURCE_DIR}/include/siigix
-# )
-
 add_library(${PROJECT_NAME} SHARED ${DATA_SOURCES_LIST})
 add_library(${SIIGIX_LIB_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
-target_link_libraries(${PROJECT_NAME} PUBLIC
+target_link_libraries(${PROJECT_NAME} PRIVATE
     siigix::General)
 
 ################################
@@ -55,9 +50,6 @@ install(
     TARGETS ${PROJECT_NAME}
     EXPORT siigixTargets
     ARCHIVE        DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    # LIBRARY        DESTINATION ${CMAKE_SOURCE_DIR}/lib
-    # PUBLIC_HEADER  DESTINATION ${CMAKE_SOURCE_DIR}/include/siigix/${PROJECT_NAME}
-    # PRIVATE_HEADER DESTINATION ${CMAKE_SOURCE_DIR}/include/siigix/${PROJECT_NAME}
 )
 
 install(
@@ -66,8 +58,9 @@ install(
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
 )
 
-#############
-#  testing  #
-#############
+install(
+    DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include
+        DESTINATION ${CMAKE_SOURCE_DIR}
+)
 
 add_subdirectory(test)

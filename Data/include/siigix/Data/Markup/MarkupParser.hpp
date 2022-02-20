@@ -10,6 +10,7 @@
     XX(OK,                    "success")                                                                    \
                                                                                                             \
     XX(AMBIGOUS,              "ambigous")                                                                   \
+    XX(SYNTAX,                "syntax error")                                                               \
     XX(EMPTY,                 "file empty")                                                                 \
     XX(NO_BLOCK_NAME,         "block have no name")                                                         \
     XX(DATA_OUTSIDE_BLOCK,    "data outside of block")                                                      \

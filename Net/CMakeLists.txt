@@ -8,17 +8,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #  findig packages  #
 #####################
 
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-# find_package(Threads REQUIRED)
+find_package(OpenSSL REQUIRED)
 
 #########################
 #  building executable  #
 #########################
-
-install(
-    DIRECTORY ${NET_INCLUDE_DIR}
-        DESTINATION ${CMAKE_SOURCE_DIR}/include/siigix
-)
 
 add_library(${PROJECT_NAME} SHARED ${NET_SOURCES_LIST})
 add_library(sgx::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
@@ -50,9 +44,11 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     PRIVATE_HEADER "${NET_HEADERS_PRIVATE}"
 )
 
-target_include_directories(${PROJECT_NAME} PUBLIC
-    $<BUILD_INTERFACE:${NET_DIR}/include>
-    $<INSTALL_INTERFACE:include>
+target_include_directories(${PROJECT_NAME}
+    PUBLIC
+        $<BUILD_INTERFACE:${NET_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+        ${OPENSSL_INCLUDE_DIR}
 )
 
 ######################
@@ -71,3 +67,9 @@ install(
     NAMESPACE   ${SIIGIX_LIB_NAME}::
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
 )
+
+install(
+    DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include
+        DESTINATION ${CMAKE_SOURCE_DIR}
+)
+
