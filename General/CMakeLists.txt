@@ -11,21 +11,18 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
-# install(
-#     # DIRECTORY ${GENERAL_INCLUDE_DIR}
-#     DIRECTORY ${GENERAL_DIR}/include
-#         DESTINATION ${CMAKE_SOURCE_DIR}/include/siigix
-# )
-
 #########################
 #  building executable  #
 #########################
 
 add_library(${PROJECT_NAME} SHARED ${GENERAL_SOURCES_LIST})
-add_library(${SIIGIX_LIB_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
+add_library(siigix::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
-target_link_libraries(${PROJECT_NAME}
-    PUBLIC Threads::Threads)
+target_link_libraries(
+    ${PROJECT_NAME}
+    PRIVATE
+        Threads::Threads
+)
 
 ################################
 #  setting project properties  #
@@ -64,4 +61,9 @@ install(
     EXPORT      siigixTargets
     NAMESPACE   ${SIIGIX_LIB_NAME}::
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
+)
+
+install(
+    DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include
+        DESTINATION ${CMAKE_SOURCE_DIR}/
 )

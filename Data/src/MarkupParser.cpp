@@ -28,6 +28,13 @@ namespace sgx::Markup {
         for (std::string buff; std::getline(file, buff); ) {
             _buffer.add_line(buff);
         }
+        file.close();
+
+        if (_buffer.linesCount() <= 0 ) {
+            _errno = SGXP_EMPTY;
+            print_error();
+            return nullptr;
+        }
 
         file.close();
 
@@ -55,7 +62,7 @@ namespace sgx::Markup {
             /* On block start char */
             if (seekSignatureStrict("sgx_mrk_block_start"))
             {
-                if (cur_depth >= 0) { //root
+                if (cur_depth >= 0) {
                     MarkupNode * node = root.get();
                     //find target node
                     for (int i = 0; i < cur_depth; i++) {
@@ -76,21 +83,13 @@ namespace sgx::Markup {
                 even++;
                 cur_depth--;
             }
-            else if (cur_depth < 0 && even % 2 != 0)
-            {
-                _errno = SGXP_DATA_OUTSIDE_BLOCK;
-                print_error();
-                throw std::runtime_error(eprintf("TUTA BEDA"));
-                break;
-            /* On variable name char */
-            }
             else if (isOnSignature("sgx_mrk_var_name"))
             {
                 Unit unit;
 
                 _buffer.step_back();
                 if (parseUnit(unit)) {
-                    if (cur_depth > 1) {
+                    if (cur_depth >= 0) {
                         MarkupNode * node = root.get();
                         for (int i = 0; i < cur_depth; i++) {
                             node = node->getSubNodes().at(node->subNodesCount()-1).get();
@@ -103,6 +102,14 @@ namespace sgx::Markup {
                     break;
                 }
             /* On block name char */
+            }
+            else if (cur_depth < 0 && even % 2 != 0)
+            {
+                _errno = SGXP_DATA_OUTSIDE_BLOCK;
+                print_error();
+                throw std::runtime_error(eprintf("TUTA BEDA"));
+                break;
+            /* On variable name char */
             }
             else if (isOnSignature("sgx_mrk_block_name_start"))
             {
@@ -261,6 +268,7 @@ namespace sgx::Markup {
     sgxMarkupParser::parseUnitName()
     {
         std::string name;
+        bool brakets = false;
 
         //add errno setup
         while (_buffer.step()) {
@@ -291,6 +299,10 @@ namespace sgx::Markup {
                             return "";
                         }
                     }
+                    if (!isOnSignature("space") || !isOnSignature("sgx_mrk_end_line")) {
+                        _errno = SGXP_SYNTAX;
+                        break;
+                    }
                     else
                     {
                         _errno = SGXP_NO_ASSIGN_SIGNATURE;
@@ -316,13 +328,16 @@ namespace sgx::Markup {
         while (_buffer.step()) {
             if (isOnSignature("sgx_mrk_var_value")) {
                 value.append(1, _buffer.info().ch());
-            } else if (isOnSignature("space")) { /* is array? */
+            } else if (isOnSignature("space")) { /* is array? */ //not check for its not in brakets
                 skipSpaces();
-            } else if (isOnSignature("sgx_mrk_array_separator")) {
+                _buffer.step_back();
+            } else if (isOnSignature("sgx_mrk_array_separator")) { //not check for its not in brakets
                 value.append(1, _buffer.info().ch());
                 single = false;
-            } else if (isOnSignature("sgx_mrk_end_line")) {
+            } else if (isOnSignature("sgx_mrk_end_line")) { //not check for its not in brakets
                 break;
+            } else if (isOnSignature("sgx_mrk_quotes")){
+                //
             } else {
                 _errno = SGXP_AMBIGOUS;
                 return "";
@@ -374,7 +389,10 @@ namespace sgx::Markup {
     {
         int err_line = _buffer.info().notEnd() ? _buffer.info().getpos().row : _buffer.info().getpos().row-1;
         std::cerr << "Error occured during parsing. Parsing file: " << _parsing_file << std::endl;
-        std::cerr << "  >> " << "\"" << _buffer[err_line] << "\"" << std::endl;
+        if (_buffer.linesCount() != 0) {
+            std::cerr << "error at line: " << err_line+1 << " column: " << _buffer.info().getpos().col << std::endl;
+            std::cerr << "  >> " << "\"" << _buffer[err_line] << "\"" << std::endl;
+        }
         std::cerr << "Error number: " << _errno << " Reason: " << sgx_parser_strerror_tab[_errno].name << ": " <<
             sgx_parser_strerror_tab[_errno].description << std::endl << std::endl;
     }
